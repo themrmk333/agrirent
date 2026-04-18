@@ -1,0 +1,199 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container">
+    <div class="section-header">
+        <h2 class="section-title">Admin Dashboard</h2>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="stats-grid">
+        <div class="glass-panel stat-card">
+            <h4>Total Users</h4>
+            <div class="stat-value">{{ total_users }}</div>
+        </div>
+        <div class="glass-panel stat-card">
+            <h4>Total Bookings</h4>
+            <div class="stat-value">{{ total_bookings }}</div>
+        </div>
+        <div class="glass-panel stat-card">
+            <h4>Listed Equipment</h4>
+            <div class="stat-value">{{ all_eq|length }}</div>
+        </div>
+        <div class="glass-panel stat-card">
+            <h4>Total Profit</h4>
+            <div class="stat-value" style="color: #4caf50;">₹ {{ total_profit }}</div>
+        </div>
+    </div>
+
+    <!-- Charts Area -->
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); margin-bottom: 40px;">
+        <div class="glass-panel">
+            <h3 style="margin-bottom: 16px; text-align: center;">Most Rented Equipment</h3>
+            <div class="chart-container" style="position: relative; height: 300px;">
+                <canvas id="mostRentedChart"></canvas>
+            </div>
+        </div>
+        <div class="glass-panel">
+            <h3 style="margin-bottom: 16px; text-align: center;">Monthly Bookings</h3>
+            <div class="chart-container" style="position: relative; height: 300px;">
+                <canvas id="monthlyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Equipment List -->
+    <div class="glass-panel">
+        <h3 style="margin-bottom: 20px;">All Equipment Listings</h3>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Location</th>
+                        <th>Price/Day</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for eq in all_eq %}
+                    <tr>
+                        <td>#{{ eq.id }}</td>
+                        <td>{{ eq.name }}</td>
+                        <td>{{ eq.category }}</td>
+                        <td>{{ eq.location }}</td>
+                        <td>₹ {{ eq.price }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center;">No equipment found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Data Elements for Charts -->
+<div id="mrLabelsData" style="display:none;">{{ mr_labels | tojson | safe }}</div>
+<div id="mrDataData" style="display:none;">{{ mr_data | tojson | safe }}</div>
+<div id="mLabelsData" style="display:none;">{{ m_labels | tojson | safe }}</div>
+<div id="mDataData" style="display:none;">{{ m_data | tojson | safe }}</div>
+<div id="mProfitData" style="display:none;">{{ m_profit | tojson | safe }}</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+    const mrLabelsDataElement = document.getElementById("mrLabelsData");
+    const mrDataDataElement = document.getElementById("mrDataData");
+    const mLabelsDataElement = document.getElementById("mLabelsData");
+    const mDataDataElement = document.getElementById("mDataData");
+
+    const mProfitDataElement = document.getElementById("mProfitData");
+
+    const mrLabels = mrLabelsDataElement && mrLabelsDataElement.textContent ? JSON.parse(mrLabelsDataElement.textContent) : [];
+    const mrData = mrDataDataElement && mrDataDataElement.textContent ? JSON.parse(mrDataDataElement.textContent) : [];
+    const mLabels = mLabelsDataElement && mLabelsDataElement.textContent ? JSON.parse(mLabelsDataElement.textContent) : [];
+    const mData = mDataDataElement && mDataDataElement.textContent ? JSON.parse(mDataDataElement.textContent) : [];
+    const mProfit = mProfitDataElement && mProfitDataElement.textContent ? JSON.parse(mProfitDataElement.textContent) : [];
+
+    // 🎯 Most Rented Chart
+    const ctxMostRented = document.getElementById('mostRentedChart');
+    if (ctxMostRented && mrLabels.length > 0) {
+        new Chart(ctxMostRented, {
+            type: 'bar',
+            data: {
+                labels: mrLabels,
+                datasets: [{
+                    label: 'Rentals',
+                    data: mrData,
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 }
+                    }
+                }
+            }
+        });
+    }
+
+    // 📈 Monthly Chart
+    const ctxMonthly = document.getElementById('monthlyChart');
+    if (ctxMonthly && mLabels.length > 0) {
+        let lineGradient = ctxMonthly.getContext('2d').createLinearGradient(0, 0, 0, 400);
+        lineGradient.addColorStop(0, 'rgba(75, 192, 192, 0.4)');
+        lineGradient.addColorStop(1, 'rgba(75, 192, 192, 0.05)');
+
+        new Chart(ctxMonthly, {
+            type: 'bar',
+            data: {
+                labels: mLabels,
+                datasets: [
+                    {
+                        type: 'line',
+                        label: 'Profit (₹)',
+                        data: mProfit,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: lineGradient,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: 'rgba(75, 192, 192, 1)',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        fill: true,
+                        tension: 0.4,
+                        yAxisID: 'y'
+                    },
+                    {
+                        type: 'bar',
+                        label: 'Bookings',
+                        data: mData,
+                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                    }
+                }
+            }
+        });
+    }
+
+});
+</script>
+{% endblock %}

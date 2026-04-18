@@ -1,0 +1,127 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container" style="max-width: 1000px;">
+    <div class="section-header glass-panel">
+        <div>
+            <h2 class="section-title">Admin: User Control Center 🛠️</h2>
+            <p>Managing details for: <strong style="color: var(--accent-color);">{{ user.full_name or user.username }}</strong></p>
+        </div>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn">Back to All Users</a>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 30px;">
+        <div class="glass-panel stat-card" style="border-bottom: 3px solid #3498db;">
+            <h4>Total Bookings</h4>
+            <div class="stat-value" style="font-size: 1.8rem;">{{ stats.total_bookings }}</div>
+        </div>
+        <div class="glass-panel stat-card" style="border-bottom: 3px solid #e67e22;">
+            <h4>Listed Equipment</h4>
+            <div class="stat-value" style="font-size: 1.8rem;">{{ stats.total_listed }}</div>
+        </div>
+        <div class="glass-panel stat-card" style="border-bottom: 3px solid #2ecc71;">
+            <h4>Total Revenue/Spent</h4>
+            <div class="stat-value" style="font-size: 1.8rem; color: #4caf50;">₹ {{ stats.total_spent }}</div>
+        </div>
+    </div>
+
+    <!-- User Profile Section -->
+    <div class="glass-panel" style="margin-bottom: 40px; border-left: 5px solid var(--accent-color);">
+        <h3 style="margin-bottom: 20px;">[ USER PROFILE ]</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+            <div>
+                <label style="opacity: 0.6; font-size: 0.85rem; display: block;">Full Name</label>
+                <span style="font-size: 1.2rem; font-weight: 600;">{{ user.full_name or 'N/A' }}</span>
+            </div>
+            <div>
+                <label style="opacity: 0.6; font-size: 0.85rem; display: block;">Username/Email</label>
+                <span>{{ user.username }}</span>
+            </div>
+            <div>
+                <label style="opacity: 0.6; font-size: 0.85rem; display: block;">Phone Number</label>
+                <span style="color: var(--primary-light);">{{ user.phone or 'N/A' }}</span>
+            </div>
+            <div style="grid-column: 1 / -1;">
+                <label style="opacity: 0.6; font-size: 0.85rem; display: block;">Full Address</label>
+                <span>{{ user.address or 'N/A' }}, {{ user.area or '' }}, {{ user.city or '' }}, {{ user.district or '' }}, {{ user.state or '' }}, {{ user.country or '' }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rented Equipment History -->
+    <div class="glass-panel" style="margin-bottom: 40px;">
+        <h3 style="margin-bottom: 20px; color: #3498db;">[ RENTED EQUIPMENT HISTORY ]</h3>
+        <div class="table-responsive">
+            <style>
+                .detail-table { width: 100%; border-collapse: collapse; }
+                .detail-table th, .detail-table td { padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); text-align: left; }
+                .detail-table th { font-weight: 600; color: var(--accent-light, #f39c12); text-transform: uppercase; font-size: 0.8rem; }
+            </style>
+            <table class="detail-table">
+                <thead>
+                    <tr>
+                        <th>Equipment</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Price Paid</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in rented_history %}
+                    <tr>
+                        <td><strong>{{ b.name }}</strong></td>
+                        <td>{{ b.date }}</td>
+                        <td>
+                            {% if b.status == 'Confirmed' or b.status == 'Returned' %}
+                                <span class="status-badge status-confirmed" style="background: #2e7d32; font-size: 0.75rem;">{{ b.status }}</span>
+                            {% elif b.status == 'Cancelled' %}
+                                <span class="status-badge" style="background: gray; font-size: 0.75rem;">{{ b.status }}</span>
+                            {% else %}
+                                <span class="status-badge" style="background: #c62828; font-size: 0.75rem;">{{ b.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right;">₹ {{ b.total_amount or 0 }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 20px; opacity: 0.5;">No rental history found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- User's Listed Equipment -->
+    <div class="glass-panel" style="margin-bottom: 40px;">
+        <h3 style="margin-bottom: 20px; color: #e67e22;">[ USER'S LISTED EQUIPMENT ]</h3>
+        <div class="table-responsive">
+            <table class="detail-table">
+                <thead>
+                    <tr>
+                        <th>Equipment Name</th>
+                        <th>Category</th>
+                        <th>Price/Day</th>
+                        <th>Location</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for eq in listed_equipment %}
+                    <tr>
+                        <td><strong>{{ eq.name }}</strong></td>
+                        <td><span class="card-badge" style="font-size: 0.7rem;">{{ eq.category }}</span></td>
+                        <td>₹ {{ eq.price }}</td>
+                        <td>📍 {{ eq.location }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 20px; opacity: 0.5;">No listed equipment found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

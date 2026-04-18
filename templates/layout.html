@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriRent - Farm Equipment Rental</title>
+    <!-- Global Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .btn { transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }
+        .btn:active { transform: scale(1.05); }
+        .btn:hover { box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .hero { background-size: cover; background-position: center; transition: background-size 0.5s ease-out; }
+        .hero:hover { background-size: 105%; }
+        .card-actions form { flex: 1; display: flex; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <a href="/">🚜 AgriRent</a>
+        </div>
+        <ul class="navbar-nav">
+            {% if session.user_id %}
+                <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li><a href="{{ url_for('equipment') }}">Equipment</a></li>
+                <li><a href="{{ url_for('add_equipment') }}">Give on Rent</a></li>
+                {% if session.get('is_admin') == 1 %}
+                    <li><a href="{{ url_for('admin_dashboard') }}">Admin Panel</a></li>
+                {% endif %}
+                <li><a href="{{ url_for('profile') }}">Profile</a></li>
+                <li><a href="{{ url_for('logout') }}" class="nav-btn">Logout</a></li>
+            {% else %}
+                <li><a href="{{ url_for('equipment') }}">Browse Equipment</a></li>
+                <li><a href="{{ url_for('login') }}">Login</a></li>
+                <li><a href="{{ url_for('register') }}" class="nav-btn">Register</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+
+    <div class="flash-messages">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    {% block content %}{% endblock %}
+    
+    <!-- Sticky Mobile Action Button -->
+    <div class="sticky-mobile-btn">
+        <a href="{{ url_for('equipment') }}" class="btn btn-accent btn-block" style="padding: 15px; font-size: 1rem; border-radius: 30px;">🔍 Browse Equipment</a>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

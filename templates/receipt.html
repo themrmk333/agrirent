@@ -1,0 +1,54 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container" style="display: flex; justify-content: center; align-items: center; min-height: 70vh;">
+    <div class="receipt-card glass-panel" style="width: 100%; max-width: 500px; padding: 40px; border-radius: 12px; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        
+        <div style="position: absolute; top: 25px; right: -35px; background: #4caf50; color: #fff; padding: 5px 40px; transform: rotate(45deg); font-weight: bold; font-size: 0.85rem; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 10;">
+            Agreement ✅
+        </div>
+        
+        <h2 style="text-align: center; color: var(--accent-light, #f39c12); border-bottom: 2px dashed rgba(255,255,255,0.2); padding-bottom: 20px; font-weight: 700;">Payment Receipt</h2>
+        
+        <div style="margin-top: 25px; font-size: 1.05rem;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                <span style="opacity: 0.8;">Booking ID:</span>
+                <strong>#{{ booking.id }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                <span style="opacity: 0.8;">Customer Name:</span>
+                <strong>{{ booking.username or 'Deleted User' }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                <span style="opacity: 0.8;">Contact Number:</span>
+                <strong>{{ booking.phone_number }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                <span style="opacity: 0.8;">Equipment:</span>
+                <strong>{{ booking.equipment_name }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                <span style="opacity: 0.8;">Duration:</span>
+                <strong>{{ booking.start_date }} to {{ booking.end_date }} ({{ booking.total_days }} day{{ 's' if booking.total_days > 1 else '' }})</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                <span style="opacity: 0.8;">Price Per Day:</span>
+                <strong>₹ {{ booking.price }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px;">
+                <span style="opacity: 0.8;">Payment Status:</span>
+                <strong style="color: #4caf50;">Paid ✔</strong>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; margin-top: 20px; font-size: 1.4rem;">
+                <strong>Total Amount:</strong>
+                <strong style="color: var(--accent-color);">₹ {{ booking.total_amount }}</strong>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 40px; display: flex; gap: 15px; justify-content: center;">
+            <button onclick="window.print()" class="btn btn-pop" style="background: rgba(255,255,255,0.1);">🖨️ Print Receipt</button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-accent">Go to Dashboard</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

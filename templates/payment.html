@@ -1,0 +1,73 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container">
+    <div class="auth-container glass-panel" style="max-width: 600px;">
+        <div class="auth-header">
+            <h2>Secure Payment</h2>
+            <p>Complete your booking</p>
+        </div>
+        
+        <div style="background: rgba(46, 125, 50, 0.2); border: 1px solid var(--primary-color); padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+            <h4 style="margin-bottom: 8px;">Booking Summary</h4>
+            <p><strong>Item:</strong> {{ equipment.name }}</p>
+            <p><strong>Dates:</strong> {{ start_date }} to {{ end_date }} ({{ total_days }} Days)</p>
+            <p><strong>Price per Day:</strong> ₹ {{ equipment.price }}</p>
+            <p style="font-size: 1.2rem; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 12px; padding-top: 12px;">
+                <strong>Amount to Pay:</strong> <span style="color: var(--accent-light, #f39c12);">₹ {{ total_amount }}</span>
+            </p>
+        </div>
+
+        <form action="{{ url_for('process_payment') }}" method="POST" id="paymentForm">
+            <div class="form-group">
+                <label for="paymentMethod">Payment Method</label>
+                <select id="paymentMethod" class="form-control" style="background-color: var(--bg-dark);">
+                    <option value="card">Credit / Debit Card</option>
+                    <option value="upi">UPI</option>
+                </select>
+            </div>
+            
+            <div id="cardDetails">
+                <div class="form-group">
+                    <label for="cardNumber">Card Number</label>
+                    <input type="text" id="cardNumber" class="form-control" placeholder="XXXX XXXX XXXX XXXX" pattern="\d{16}" title="16 digit card number">
+                </div>
+                <div style="display: flex; gap: 16px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="expiry">Expiry (MM/YY)</label>
+                        <input type="text" id="expiry" class="form-control" placeholder="MM/YY">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="cvv">CVV</label>
+                        <input type="password" id="cvv" class="form-control" placeholder="XXX" pattern="\d{3,4}">
+                    </div>
+                </div>
+            </div>
+            
+            <div id="upiDetails" style="display: none;">
+                <div class="form-group">
+                    <label for="upiId">UPI ID</label>
+                    <input type="text" id="upiId" class="form-control" placeholder="username@upi">
+                </div>
+            </div>
+            
+            <div class="form-group" style="margin-top: 20px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border-left: 4px solid var(--accent-light, #f39c12);">
+                <label style="display: flex; align-items: flex-start; cursor: pointer; gap: 10px;">
+                    <input type="checkbox" name="agreement" id="agreement" required style="margin-top: 5px; transform: scale(1.2);">
+                    <span style="font-size: 0.95rem;"><strong>Agreement:</strong> I agree that if any damage occurs to the equipment, I will pay the applicable charges.</span>
+                </label>
+            </div>
+            
+            <button type="submit" class="btn btn-accent btn-block" style="margin-top: 20px; font-size: 1.1rem;">Pay ₹ {{ total_amount }}</button>
+        </form>
+    </div>
+    <script>
+        document.getElementById('paymentForm').addEventListener('submit', function(e) {
+            const agreement = document.getElementById('agreement');
+            if(!agreement.checked) {
+                e.preventDefault();
+                alert("Please accept agreement to continue");
+            }
+        });
+    </script>
+</div>
+{% endblock %}

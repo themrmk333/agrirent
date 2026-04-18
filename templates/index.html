@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    .hero.dynamic-bg {
+        background: linear-gradient(to bottom, rgba(0,0,0,0.6), rgba(0,0,0,0.8)), 
+                    url("{{ url_for('static', filename='images/farm_bg.png') }}") no-repeat center center/cover;
+        min-height: 80vh;
+    }
+</style>
+<div class="landing-body">
+    <!-- Use the new custom background image with dark overlay -->
+    <section class="hero dynamic-bg">
+        <div class="hero-content glass-panel" style="background: rgba(0,0,0,0.4); max-width: 600px; padding: 40px; text-align: center;">
+            <h1>Welcome to<br>AgriRent 🚜</h1>
+            <p>Smart, Simple & Secure Farm Equipment Rental System. Rent or list your farming tools today!</p>
+            <div style="display: flex; gap: 20px; justify-content: center; margin-top: 20px;">
+                <a href="{{ url_for('login') }}" class="btn">Get Started</a>
+                <a href="{{ url_for('equipment') }}" class="btn btn-accent" style="color: #333;">Browse Equipment</a>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

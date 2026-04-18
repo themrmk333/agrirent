@@ -1,0 +1,359 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container">
+    <div class="section-header glass-panel">
+        <div>
+            <h2 class="section-title">Welcome, {{ full_name }}! 👋</h2>
+            <p>Manage your rentals and see what's trending.</p>
+        </div>
+        <a href="{{ url_for('add_equipment') }}" class="btn btn-accent">Give on Rent +</a>
+    </div>
+    
+    {% if reminders %}
+    <div style="margin-bottom: 30px;">
+        {% for reminder in reminders %}
+        <div class="glass-panel" style="background: rgba(220, 53, 69, 0.2); border-left: 5px solid #ff4d4d; padding: 15px; margin-bottom: 10px;">
+            <h4 style="color: #ff4d4d; margin-bottom: 5px;">⚠️ Reminder!</h4>
+            <p style="font-size: 1.05rem;">{{ reminder }}</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Seasonal Trending -->
+    <div style="margin-bottom: 40px;">
+        <h3 style="margin-bottom: 16px; font-weight: 600; color: var(--accent-color);">🔥 Trending: {{ trending_cat }}</h3>
+        <div class="grid">
+            {% for eq in trending_eq %}
+            <div class="card glass-panel">
+                <img src="{{ url_for('static', filename='images/' + eq.image) }}" onerror="this.onerror=null; this.src='/static/images/default.jpg';">
+                <div class="card-body">
+                    <span class="card-badge">Seasonal Demand</span>
+                    <h3 class="card-title">{{ eq.name }}</h3>
+                    <p style="font-size: 0.9rem; margin-bottom: 8px; opacity: 0.8;">📍 {{ eq.location }}</p>
+                    <p class="card-price">₹ {{ eq.price }} / day</p>
+                    <div class="card-actions">
+                        <a href="{{ url_for('booking', eq_id=eq.id) }}" class="btn btn-block">Rent Now</a>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <p>No trending items right now.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- You May Also Like -->
+    {% if recommended_eq %}
+    <div style="margin-bottom: 40px;">
+        <h3 style="margin-bottom: 16px; font-weight: 600; color: var(--accent-light, #f39c12);">✨ You May Also Like</h3>
+        <div class="grid">
+            {% for eq in recommended_eq %}
+            <div class="card glass-panel" style="border: 1px solid rgba(243, 156, 18, 0.3);">
+                <img src="{{ url_for('static', filename='images/' + eq.image) }}" onerror="this.onerror=null; this.src='/static/images/default.jpg';">
+                <div class="card-body">
+                    <span class="card-badge" style="background-color: var(--accent-color, #f39c12); color: #fff;">Recommended</span>
+                    <h3 class="card-title">{{ eq.name }}</h3>
+                    <p style="font-size: 0.9rem; margin-bottom: 8px; opacity: 0.8;">📍 {{ eq.location }}</p>
+                    <p class="card-price">₹ {{ eq.price }} / day</p>
+                    <div class="card-actions">
+                        <a href="{{ url_for('booking', eq_id=eq.id) }}" class="btn btn-pop btn-block">Rent Now</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Bookings -->
+    <div>
+        <h3 style="margin-bottom: 16px; font-weight: 600;">Your Recent Bookings</h3>
+        {% if bookings %}
+            <div class="glass-panel table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Image</th>
+                            <th>Equipment</th>
+                            <th>Date</th>
+                            <th>Price</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in bookings %}
+                        <tr>
+                            <td><img src="{{ url_for('static', filename='images/' + b.image) }}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;" onerror="this.onerror=null; this.src='/static/images/default.jpg';"></td>
+                            <td style="font-weight: 500;">{{ b.name }}</td>
+                            <td>{{ b.date }}</td>
+                            <td>₹ {{ b.price }}</td>
+                            <td>
+                                {% if b.status != 'Cancelled' %}
+                                    {% if b.status == 'Confirmed' %}
+                                        <span class="status-badge status-confirmed">{{ b.status }}</span>
+                                    {% elif b.status == 'Damage Pending' %}
+                                        <span class="status-badge" style="background: #dc3545;">Damage Charged</span>
+                                    {% else %}
+                                        <span class="status-badge" style="background: #4caf50;">{{ b.status }}</span>
+                                    {% endif %}
+                                    
+                                    <div style="margin-top: 5px; display: flex; gap: 5px; flex-wrap: wrap;">
+                                        <a href="{{ url_for('receipt', booking_id=b.id) }}" class="btn btn-pop" style="background:#28a745; padding: 4px 8px; font-size:0.8rem; margin-top:4px;">Receipt</a>
+                                        
+                                        {% if b.status == 'Confirmed' %}
+                                        <a href="{{ url_for('booking', eq_id=b.equipment_id) }}" class="btn btn-pop" style="background:#17a2b8; padding: 4px 8px; font-size:0.8rem; margin-top:4px;">Extend</a>
+                                        <form action="{{ url_for('cancel_booking', booking_id=b.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to cancel this booking?');">
+                                            <button type="submit" class="btn btn-pop" style="background:#dc3545; padding: 4px 8px; font-size:0.8rem; margin-top:4px;">Cancel</button>
+                                        </form>
+                                        {% endif %}
+                                        
+                                        {% if b.status == 'Damage Pending' %}
+                                        <form action="{{ url_for('pay_damage', booking_id=b.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Pay damage fee of ₹ {{ b.damage_charge }}?');">
+                                            <button type="submit" class="btn btn-pop" style="background:#ffc107; color:#000; padding: 4px 8px; font-size:0.8rem; margin-top:4px;">Pay Damage ₹{{ b.damage_charge }}</button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <span class="status-badge" style="background:gray;">{{ b.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="glass-panel" style="text-align: center; padding: 40px;">
+                <p style="font-size: 1.2rem; margin-bottom: 20px;">You haven't rented anything yet.</p>
+                <a href="{{ url_for('equipment') }}" class="btn">Explore Equipment</a>
+            </div>
+        {% endif %}
+    </div>
+    <!-- Analytics Toggle Section -->
+    <div style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
+        <button id="toggleMonthlyAnalyticsBtn" class="btn btn-accent btn-pop" style="transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.2); padding: 12px 28px; font-weight: 600; font-size: 1.1rem; border-radius: 8px;">
+            <span style="margin-right: 8px;">📊</span> View Monthly Analytics
+        </button>
+    </div>
+
+    <!-- Hidden Monthly Analytics Container -->
+    <div id="monthlyAnalyticsContainer" style="display: none; opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease;">
+        <h3 style="margin-bottom: 20px; text-align: center; font-weight: 600;">Yearly Report: Rentals & Profit</h3>
+        
+        <!-- Table Section -->
+        <div class="glass-panel" style="margin-bottom: 30px;">
+            <style>
+                .analytics-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                .analytics-table th, .analytics-table td {
+                    padding: 12px 16px;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                    text-align: left;
+                }
+                .analytics-table th {
+                    font-weight: 600;
+                    color: var(--accent-light, #f39c12);
+                    text-transform: uppercase;
+                    font-size: 0.85rem;
+                    letter-spacing: 0.5px;
+                }
+                .analytics-table tbody tr {
+                    transition: background-color 0.2s ease;
+                }
+                .analytics-table tbody tr:hover {
+                    background-color: rgba(255, 255, 255, 0.05);
+                }
+                .analytics-table tbody tr:last-child td {
+                    border-bottom: none;
+                }
+            </style>
+            <div class="table-responsive">
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th style="text-align: center;">Equipment Rented</th>
+                            <th style="text-align: right;">Profit (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="monthlyTableBody">
+                        <!-- Populated dynamically via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="glass-panel" style="border-top: 4px solid var(--accent-color, #f39c12);">
+            <div style="position: relative; height: 400px;">
+                <canvas id="monthlyMixedChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const btn = document.getElementById('toggleMonthlyAnalyticsBtn');
+        const container = document.getElementById('monthlyAnalyticsContainer');
+        const tbody = document.getElementById('monthlyTableBody');
+        let chartInstance = null;
+
+        // Sample / Demo Data for Monthly Overview
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const rented = [5, 8, 15, 22, 28, 20, 12, 18, 25, 30, 35, 28];
+        const profit = [7500, 12000, 22500, 33000, 42000, 30000, 18000, 27000, 37500, 45000, 52500, 42000];
+
+        // Populate the monthly table
+        for (let i = 0; i < months.length; i++) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="font-weight: 500;">${months[i]}</td>
+                <td style="text-align: center;">${rented[i]}</td>
+                <td style="text-align: right; color: #4caf50; font-weight: bold;">₹ ${profit[i].toLocaleString()}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        // Toggle visibility with animation
+        btn.addEventListener('click', () => {
+            const isHidden = container.style.display === "none" || container.style.display === "";
+            
+            if (isHidden) {
+                // Show analytics
+                btn.innerHTML = '<span style="margin-right: 8px;">📉</span> Hide Monthly Analytics';
+                container.style.display = "block";
+                
+                setTimeout(() => {
+                    container.style.opacity = "1";
+                    container.style.transform = "translateY(0)";
+                }, 10);
+
+                // Initialize the Mixed Chart (Bar + Line)
+                if (!chartInstance) {
+                    const ctx = document.getElementById('monthlyMixedChart').getContext('2d');
+                    
+                    let lineGradient = ctx.createLinearGradient(0, 0, 0, 400);
+                    lineGradient.addColorStop(0, 'rgba(75, 192, 192, 0.4)');
+                    lineGradient.addColorStop(1, 'rgba(75, 192, 192, 0.05)');
+
+                    chartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: months,
+                            datasets: [
+                                {
+                                    type: 'line',
+                                    label: 'Profit (₹)',
+                                    data: profit,
+                                    borderColor: 'rgba(75, 192, 192, 1)',
+                                    backgroundColor: lineGradient,
+                                    borderWidth: 3,
+                                    pointBackgroundColor: '#fff',
+                                    pointBorderColor: 'rgba(75, 192, 192, 1)',
+                                    pointBorderWidth: 2,
+                                    pointRadius: 4,
+                                    pointHoverRadius: 6,
+                                    fill: true,
+                                    tension: 0.4,
+                                    yAxisID: 'y'
+                                },
+                                {
+                                    type: 'bar',
+                                    label: 'Equipment Rented',
+                                    data: rented,
+                                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                                    borderColor: 'rgba(54, 162, 235, 1)',
+                                    borderWidth: 1,
+                                    borderRadius: 6,
+                                    yAxisID: 'y1'
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: { duration: 1500, easing: 'easeOutQuart' },
+                            interaction: {
+                                mode: 'index',
+                                intersect: false,
+                            },
+                            scales: {
+                                y: {
+                                    type: 'linear',
+                                    position: 'left',
+                                    title: { display: true, text: 'Profit (₹)', color: 'rgba(255, 255, 255, 0.7)' },
+                                    grid: { color: 'rgba(200, 200, 200, 0.1)' },
+                                    ticks: { color: 'rgba(255, 255, 255, 0.7)' }
+                                },
+                                y1: {
+                                    type: 'linear',
+                                    position: 'right',
+                                    title: { display: true, text: 'Units Rented', color: 'rgba(255, 255, 255, 0.7)' },
+                                    grid: { drawOnChartArea: false }, 
+                                    ticks: { color: 'rgba(255, 255, 255, 0.7)' }
+                                },
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { color: 'rgba(255, 255, 255, 0.7)' }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    labels: { color: 'rgba(255, 255, 255, 0.9)', font: { size: 14 } }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            let label = context.dataset.label || '';
+                                            if (label) {
+                                                label += ': ';
+                                            }
+                                            if (context.dataset.type === 'line') {
+                                                label += '₹ ' + context.parsed.y.toLocaleString();
+                                            } else {
+                                                label += context.parsed.y;
+                                            }
+                                            return label;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            } else {
+                // Hide analytics
+                btn.innerHTML = '<span style="margin-right: 8px;">📊</span> View Monthly Analytics';
+                container.style.opacity = "0";
+                container.style.transform = "translateY(20px)";
+                setTimeout(() => {
+                    container.style.display = "none";
+                }, 500); 
+            }
+        });
+
+        // Hover popup animations
+        btn.addEventListener('mouseenter', () => {
+            btn.style.transform = 'scale(1.05) translateY(-2px)';
+            btn.style.boxShadow = '0 6px 20px rgba(0,0,0,0.3)';
+        });
+        btn.addEventListener('mouseleave', () => {
+            btn.style.transform = 'scale(1) translateY(0)';
+            btn.style.boxShadow = '0 4px 15px rgba(0,0,0,0.2)';
+        });
+        btn.addEventListener('mousedown', () => {
+            btn.style.transform = 'scale(0.95)';
+        });
+        btn.addEventListener('mouseup', () => {
+            btn.style.transform = 'scale(1.05) translateY(-2px)';
+        });
+    });
+</script>
+{% endblock %}

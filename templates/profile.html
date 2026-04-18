@@ -1,0 +1,75 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container" style="max-width: 900px;">
+    <div class="section-header glass-panel">
+        <div>
+            <h2 class="section-title">My Profile 👤</h2>
+            <p>Manage your personal details and address</p>
+        </div>
+        <a href="{{ url_for('dashboard') }}" class="btn">Back to Dashboard</a>
+    </div>
+
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+        <!-- Personal Info Card -->
+        <div class="glass-panel" style="padding: 30px;">
+            <h3 style="margin-bottom: 20px; color: var(--accent-color); border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
+                Personal Information
+            </h3>
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <label style="opacity: 0.6; font-size: 0.9rem; display: block;">Full Name</label>
+                    <span style="font-size: 1.2rem; font-weight: 600;">{{ user.full_name or 'Not Set' }}</span>
+                </div>
+                <div>
+                    <label style="opacity: 0.6; font-size: 0.9rem; display: block;">Username</label>
+                    <span style="font-size: 1.1rem;">{{ user.username }}</span>
+                </div>
+                <div>
+                    <label style="opacity: 0.6; font-size: 0.9rem; display: block;">Contact Number</label>
+                    <span style="font-size: 1.1rem; color: var(--primary-light);">{{ user.phone or 'Not Set' }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Address Info Card -->
+        <div class="glass-panel" style="padding: 30px;">
+            <h3 style="margin-bottom: 20px; color: var(--accent-color); border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
+                Address & Location
+            </h3>
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <label style="opacity: 0.6; font-size: 0.9rem; display: block;">Address</label>
+                    <span style="font-size: 1.1rem;">{{ user.address or 'Not Set' }}</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div>
+                        <label style="opacity: 0.6; font-size: 0.9rem; display: block;">Area</label>
+                        <span>{{ user.area or 'Not Set' }}</span>
+                    </div>
+                    <div>
+                        <label style="opacity: 0.6; font-size: 0.9rem; display: block;">City</label>
+                        <span>{{ user.city or 'Not Set' }}</span>
+                    </div>
+                    <div>
+                        <label style="opacity: 0.6; font-size: 0.9rem; display: block;">District</label>
+                        <span>{{ user.district or 'Not Set' }}</span>
+                    </div>
+                    <div>
+                        <label style="opacity: 0.6; font-size: 0.9rem; display: block;">State</label>
+                        <span>{{ user.state or 'Not Set' }}</span>
+                    </div>
+                </div>
+                <div>
+                    <label style="opacity: 0.6; font-size: 0.9rem; display: block;">Country</label>
+                    <span>{{ user.country or 'Not Set' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Card -->
+    <div class="glass-panel" style="margin-top: 30px; text-align: center; padding: 20px; border: 1px dashed rgba(255,255,255,0.2);">
+        <p style="opacity: 0.8;">Account Type: <span class="status-badge status-confirmed" style="font-size: 0.8rem;">Verified Farmer</span></p>
+    </div>
+</div>
+{% endblock %}

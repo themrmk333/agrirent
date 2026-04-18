@@ -1,0 +1,85 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container">
+    <div class="auth-container glass-panel" style="max-width: 800px; display: flex; flex-direction: column; gap: 24px;">
+        <div class="auth-header" style="margin-bottom: 0;">
+            <h2>Book Equipment</h2>
+            <p>Select dates for your rental</p>
+        </div>
+        
+        <div style="display: flex; gap: 20px; align-items: center; background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px;">
+            <img src="{{ url_for('static', filename='images/' + equipment.image) }}" style="width: 150px; height: 100px; object-fit: cover; border-radius: 8px;" onerror="this.onerror=null; this.src='/static/images/default.jpg';">
+            <div>
+                <h3>{{ equipment.name }}</h3>
+                <p style="color: var(--primary-light); font-weight: 600; font-size: 1.2rem; margin-top: 8px;">₹ {{ equipment.price }} / day</p>
+                <p style="opacity: 0.8; font-size: 0.9rem; margin-top: 4px;">📍 {{ equipment.location }}</p>
+            </div>
+        </div>
+
+        <form action="{{ url_for('payment') }}" method="POST">
+            <input type="hidden" name="equipment_id" value="{{ equipment.id }}">
+            
+            <div class="form-group">
+                <label for="phone_number">Contact Number (10 Digits)</label>
+                <input type="tel" id="phone_number" name="phone_number" class="form-control" pattern="[0-9]{10}" required placeholder="e.g. 9876543210" title="Please enter exactly 10 digits">
+            </div>
+
+            <div style="display: flex; gap: 16px;">
+                <div class="form-group" style="flex: 1;">
+                    <label for="start_date">Start Date</label>
+                    <input type="date" id="start_date" name="start_date" class="form-control" required style="color-scheme: dark;">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label for="end_date">End Date</label>
+                    <input type="date" id="end_date" name="end_date" class="form-control" required style="color-scheme: dark;">
+                </div>
+            </div>
+            <p id="duration_warning" style="color: #ff4d4d; font-size: 0.9rem; display: none; margin-top: -10px; margin-bottom: 10px;">Maximum booking limit is 3 days.</p>
+            <button type="submit" class="btn btn-pop btn-block">Continue to Payment ➡️</button>
+        </form>
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const today = new Date().toISOString().split('T')[0];
+                const startDate = document.getElementById('start_date');
+                const endDate = document.getElementById('end_date');
+                const durationWarning = document.getElementById('duration_warning');
+                
+                startDate.setAttribute('min', today);
+                endDate.setAttribute('min', today);
+                
+                startDate.addEventListener('change', function() {
+                    let sDate = new Date(this.value);
+                    endDate.setAttribute('min', this.value);
+                    
+                    let maxDate = new Date(sDate);
+                    maxDate.setDate(sDate.getDate() + 2); // Up to 3 days total
+                    
+                    endDate.setAttribute('max', maxDate.toISOString().split('T')[0]);
+                    
+                    if(endDate.value && endDate.value < this.value) {
+                        endDate.value = this.value;
+                    }
+                    if(endDate.value && new Date(endDate.value) > maxDate) {
+                        endDate.value = maxDate.toISOString().split('T')[0];
+                        durationWarning.style.display = 'block';
+                    } else {
+                        durationWarning.style.display = 'none';
+                    }
+                });
+                
+                endDate.addEventListener('change', function() {
+                    let sDate = new Date(startDate.value);
+                    let maxDate = new Date(sDate);
+                    maxDate.setDate(sDate.getDate() + 2);
+                    if(new Date(this.value) > maxDate) {
+                        this.value = maxDate.toISOString().split('T')[0];
+                        durationWarning.style.display = 'block';
+                    } else {
+                        durationWarning.style.display = 'none';
+                    }
+                });
+            });
+        </script>
+    </div>
+</div>
+{% endblock %}

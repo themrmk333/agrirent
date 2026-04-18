@@ -1,0 +1,371 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container">
+    <div class="section-header">
+        <h2 class="section-title">Admin Dashboard</h2>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+        <div class="glass-panel stat-card">
+            <h4>Total Users</h4>
+            <div class="stat-value">{{ total_users }}</div>
+        </div>
+        <div class="glass-panel stat-card">
+            <h4>Total Bookings</h4>
+            <div class="stat-value">{{ total_bookings }}</div>
+        </div>
+        <div class="glass-panel stat-card">
+            <h4>Cancelled Bookings</h4>
+            <div class="stat-value" style="color: #dc3545;">{{ cancelled_bookings }}</div>
+        </div>
+        <div class="glass-panel stat-card">
+            <h4>Listed Equipment</h4>
+            <div class="stat-value">{{ total_eq }}</div>
+        </div>
+        <div class="glass-panel stat-card">
+            <h4>Total Profit</h4>
+            <div class="stat-value" style="color: #4caf50;">₹ {{ total_profit }}</div>
+        </div>
+    </div>
+
+    <!-- Registered Users List -->
+    <div class="glass-panel" style="margin-bottom: 40px; border: 1px solid rgba(255,255,255,0.1);">
+        <h3 style="margin-bottom: 20px;">Registered Users</h3>
+        <div class="table-responsive">
+            <style>
+                .admin-table { width: 100%; border-collapse: collapse; }
+                .admin-table th, .admin-table td { padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); text-align: left; }
+                .admin-table th { font-weight: 600; color: var(--accent-light, #f39c12); text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; border-bottom: 2px solid rgba(255, 255, 255, 0.2); }
+                .admin-table tbody tr { transition: background-color 0.2s ease, border-left 0.2s ease; border-left: 0px solid transparent; }
+                .admin-table tbody tr:hover { background-color: rgba(255, 255, 255, 0.08); border-left: 3px solid var(--accent-color); }
+                .admin-table tbody tr:last-child td { border-bottom: none; }
+            </style>
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th style="width: 10%;">ID</th>
+                        <th>Full Name</th>
+                        <th>Username</th>
+                        <th>Phone</th>
+                        <th>City</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in all_users %}
+                    <tr>
+                        <td>#{{ u.id }}</td>
+                        <td style="font-weight: 500;">
+                            <a href="{{ url_for('admin_user_detail', user_id=u.id) }}" style="color: var(--accent-light, #f39c12); text-decoration: none;">
+                                {{ u.full_name or u.username }} 🔗
+                            </a>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('admin_user_detail', user_id=u.id) }}" style="color: inherit; opacity: 0.8; text-decoration: none;">
+                                {{ u.username }}
+                            </a>
+                        </td>
+                        <td>{{ u.phone or 'N/A' }}</td>
+                        <td>{{ u.city or 'N/A' }}</td>
+                        <td style="text-align: right;">
+                            <form action="{{ url_for('delete_user', user_id=u.id) }}" method="POST" style="margin:0;" onsubmit="return confirm('WARNING: Are you sure you want to delete this user? This action cannot be undone.');">
+                                <button type="submit" class="btn btn-pop" style="background:#dc3545; padding: 6px 16px; font-size: 0.85rem;">Delete User</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center;">No users found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Charts Area -->
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); margin-bottom: 40px;">
+        <div class="glass-panel">
+            <h3 style="margin-bottom: 16px; text-align: center;">Monthly Profit & Bookings</h3>
+            <div class="chart-container" style="position: relative; height: 300px;">
+                <canvas id="monthlyChart"></canvas>
+            </div>
+        </div>
+        <div class="glass-panel">
+            <h3 style="margin-bottom: 16px; text-align: center;">Weekly Trend (Last 5 Weeks)</h3>
+            <div class="chart-container" style="position: relative; height: 300px;">
+                <canvas id="weeklyChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="glass-panel" style="margin-bottom: 40px;">
+        <h3 style="margin-bottom: 16px; text-align: center;">Most Used Equipment</h3>
+        <div class="chart-container" style="position: relative; height: 300px;">
+            <canvas id="mostRentedChart"></canvas>
+        </div>
+    </div>
+
+    <style>
+        .admin-table { width: 100%; border-collapse: collapse; }
+        .admin-table th, .admin-table td { padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); text-align: left; }
+        .admin-table th { font-weight: 600; color: var(--accent-light, #f39c12); text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; border-bottom: 2px solid rgba(255, 255, 255, 0.2); }
+        .admin-table tbody tr { transition: background-color 0.2s ease, border-left 0.2s ease; border-left: 0px solid transparent; }
+        .admin-table tbody tr:hover { background-color: rgba(255, 255, 255, 0.08); border-left: 3px solid var(--accent-color); }
+        .admin-table tbody tr:last-child td { border-bottom: none; }
+    </style>
+
+    <!-- All Bookings List -->
+    <div class="glass-panel" style="margin-bottom: 40px; border: 1px solid rgba(255,255,255,0.1);">
+        <h3 style="margin-bottom: 20px;">All Bookings</h3>
+        <div class="table-responsive">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>User</th>
+                        <th>Equipment</th>
+                        <th>Status</th>
+                        <th>Return Management</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in all_bookings %}
+                    <tr>
+                        <td>#{{ b.id }}</td>
+                        <td>{{ b.username or 'Deleted User' }}</td>
+                        <td>{{ b.equipment_name }}</td>
+                        <td>
+                            {% if b.status == 'Confirmed' %}
+                                <span class="status-badge status-confirmed">{{ b.status }}</span>
+                            {% elif b.status == 'Returned' %}
+                                <span class="status-badge" style="background:#4caf50;">{{ b.status }}</span>
+                            {% elif b.status == 'Damage Pending' %}
+                                <span class="status-badge" style="background:#dc3545;">Damage Charged</span>
+                            {% else %}
+                                <span class="status-badge" style="background:gray;">{{ b.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if b.status == 'Confirmed' %}
+                            <form action="{{ url_for('admin_return', booking_id=b.id) }}" method="POST" style="display:flex; gap:5px; margin-bottom:5px;">
+                                <select name="damage_status" class="form-control" style="padding: 2px 5px; font-size: 0.8rem; background: var(--bg-dark); color: white; border: 1px solid #555;">
+                                    <option value="no_damage">No Damage</option>
+                                    <option value="damaged">Damaged</option>
+                                </select>
+                                <button type="submit" class="btn btn-pop" style="padding: 4px 10px; font-size: 0.8rem; background: var(--primary-color);">Update</button>
+                            </form>
+                            {% else %}
+                            <span style="opacity: 0.5; font-size: 0.85rem; display:block; margin-bottom:5px;">Completed / Cancelled</span>
+                            {% endif %}
+                            <a href="{{ url_for('receipt', booking_id=b.id) }}" class="btn btn-pop" style="background:#28a745; padding: 4px 8px; font-size:0.8rem; width:100%; text-align:center;">View Receipt</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center;">No bookings found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Equipment List -->
+    <div class="glass-panel" style="border: 1px solid rgba(255,255,255,0.1);">
+        <h3 style="margin-bottom: 20px;">All Equipment Controls</h3>
+        <div class="table-responsive">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Owner</th>
+                        <th>Price/Day</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for eq in all_eq %}
+                    <tr>
+                        <td>#{{ eq.id }}</td>
+                        <td style="font-weight: 500;">{{ eq.name }}</td>
+                        <td><span class="card-badge" style="font-size:0.75rem;">{{ eq.category }}</span></td>
+                        <td>{{ eq.owner_name or 'Admin' }}</td>
+                        <td>₹ {{ eq.price }}</td>
+                        <td style="text-align: right;">
+                            <form action="{{ url_for('delete_equipment', eq_id=eq.id) }}" method="POST" style="margin:0;" onsubmit="return confirm('WARNING: Are you sure you want to delete this equipment globally?');">
+                                <button type="submit" class="btn btn-pop" style="background:#dc3545; padding: 6px 16px; font-size: 0.85rem;">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center;">No equipment found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Data Elements for Charts -->
+<div id="mrLabelsData" style="display:none;">{{ mr_labels | tojson | safe }}</div>
+<div id="mrDataData" style="display:none;">{{ mr_data | tojson | safe }}</div>
+<div id="mLabelsData" style="display:none;">{{ m_labels | tojson | safe }}</div>
+<div id="mDataData" style="display:none;">{{ m_data | tojson | safe }}</div>
+<div id="mProfitData" style="display:none;">{{ m_profit | tojson | safe }}</div>
+<div id="wLabelsData" style="display:none;">{{ w_labels | tojson | safe }}</div>
+<div id="wDataData" style="display:none;">{{ w_data | tojson | safe }}</div>
+<div id="wProfitData" style="display:none;">{{ w_profit | tojson | safe }}</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+    const mrLabelsDataElement = document.getElementById("mrLabelsData");
+    const mrDataDataElement = document.getElementById("mrDataData");
+    const mLabelsDataElement = document.getElementById("mLabelsData");
+    const mDataDataElement = document.getElementById("mDataData");
+    const mProfitDataElement = document.getElementById("mProfitData");
+
+    const mrLabels = mrLabelsDataElement && mrLabelsDataElement.textContent ? JSON.parse(mrLabelsDataElement.textContent) : [];
+    const mrData = mrDataDataElement && mrDataDataElement.textContent ? JSON.parse(mrDataDataElement.textContent) : [];
+    const mLabels = mLabelsDataElement && mLabelsDataElement.textContent ? JSON.parse(mLabelsDataElement.textContent) : [];
+    const mData = mDataDataElement && mDataDataElement.textContent ? JSON.parse(mDataDataElement.textContent) : [];
+    const mProfit = mProfitDataElement && mProfitDataElement.textContent ? JSON.parse(mProfitDataElement.textContent) : [];
+
+    // 🎯 Most Rented Chart
+    const ctxMostRented = document.getElementById('mostRentedChart');
+    if (ctxMostRented && mrLabels.length > 0) {
+        new Chart(ctxMostRented, {
+            type: 'bar',
+            data: {
+                labels: mrLabels,
+                datasets: [{
+                    label: 'Rentals',
+                    data: mrData,
+                    backgroundColor: 'rgba(243, 156, 18, 0.7)',
+                    borderColor: 'rgba(243, 156, 18, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0, color: 'rgba(255, 255, 255, 0.7)' }
+                    },
+                    x: {
+                        ticks: { color: 'rgba(255, 255, 255, 0.7)' }
+                    }
+                },
+                plugins: {
+                    legend: { labels: { color: 'rgba(255, 255, 255, 0.9)' } }
+                }
+            }
+        });
+    }
+
+    // 📈 Monthly Chart
+    const ctxMonthly = document.getElementById('monthlyChart');
+    if (ctxMonthly && mLabels.length > 0) {
+        let lineGradient = ctxMonthly.getContext('2d').createLinearGradient(0, 0, 0, 400);
+        lineGradient.addColorStop(0, 'rgba(75, 192, 192, 0.4)');
+        lineGradient.addColorStop(1, 'rgba(75, 192, 192, 0.05)');
+
+        new Chart(ctxMonthly, {
+            type: 'bar',
+            data: {
+                labels: mLabels,
+                datasets: [
+                    {
+                        type: 'line',
+                        label: 'Profit (₹)',
+                        data: mProfit,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: lineGradient,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#fff',
+                        fill: true,
+                        tension: 0.4,
+                        yAxisID: 'y'
+                    },
+                    {
+                        type: 'bar',
+                        label: 'Bookings',
+                        data: mData,
+                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                        borderRadius: 6,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { type: 'linear', position: 'left', ticks: { color: '#ccc' } },
+                    y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#ccc', precision: 0 } },
+                    x: { ticks: { color: '#ccc' } }
+                },
+                plugins: { legend: { labels: { color: '#fff' } } }
+            }
+        });
+    }
+
+    // 📅 Weekly Chart
+    const wLabels = JSON.parse(document.getElementById('wLabelsData').textContent || '[]');
+    const wData = JSON.parse(document.getElementById('wDataData').textContent || '[]');
+    const wProfit = JSON.parse(document.getElementById('wProfitData').textContent || '[]');
+
+    const ctxWeekly = document.getElementById('weeklyChart');
+    if (ctxWeekly && wLabels.length > 0) {
+        new Chart(ctxWeekly, {
+            type: 'line',
+            data: {
+                labels: wLabels.map(w => 'Week ' + w),
+                datasets: [
+                    {
+                        label: 'Revenue (₹)',
+                        data: wProfit,
+                        borderColor: '#4caf50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Bookings',
+                        data: wData,
+                        borderColor: '#2196f3',
+                        backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { position: 'left', ticks: { color: '#ccc' } },
+                    y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#ccc', precision: 0 } },
+                    x: { ticks: { color: '#ccc' } }
+                },
+                plugins: { legend: { labels: { color: '#fff' } } }
+            }
+        });
+    }
+    });
+</script>
+{% endblock %}

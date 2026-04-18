@@ -1,0 +1,126 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    .auth-toggle {
+        display: flex;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        margin-bottom: 25px;
+        overflow: hidden;
+        position: relative;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .toggle-btn {
+        flex: 1;
+        padding: 12px 0;
+        text-align: center;
+        cursor: pointer;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.5);
+        z-index: 1;
+        transition: color 0.3s ease;
+    }
+    .toggle-btn.active {
+        color: #fff;
+    }
+    .toggle-slider {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 50%;
+        height: 100%;
+        background: var(--accent-light, #f39c12);
+        border-radius: 8px;
+        transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        z-index: 0;
+    }
+    .login-section {
+        display: none;
+        animation: fadeIn 0.4s ease forwards;
+    }
+    .login-section.active {
+        display: block;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+<div class="container">
+    <div class="auth-container glass-panel">
+        <div class="auth-header" style="margin-bottom: 20px;">
+            <h2>Login</h2>
+            <p>Welcome back to AgriRent</p>
+        </div>
+        
+        <div class="auth-toggle">
+            <div class="toggle-slider" id="toggleSlider"></div>
+            <div class="toggle-btn active" id="userToggle" onclick="switchLogin('user')">User Login</div>
+            <div class="toggle-btn" id="adminToggle" onclick="switchLogin('admin')">Admin Login</div>
+        </div>
+
+        <form action="{{ url_for('login') }}" method="POST" id="userForm" class="login-section active">
+            <input type="hidden" name="login_type" value="user">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" class="form-control" placeholder="Enter username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" class="form-control" placeholder="Enter password" required>
+            </div>
+            <button type="submit" class="btn btn-pop btn-block" style="margin-top: 10px;">Login as User</button>
+        </form>
+
+        <form action="{{ url_for('login') }}" method="POST" id="adminForm" class="login-section">
+            <input type="hidden" name="login_type" value="admin">
+            <div class="form-group">
+                <label for="admin_email">Admin Email</label>
+                <input type="email" id="admin_email" name="admin_email" class="form-control" placeholder="Enter custom admin email">
+            </div>
+            <div class="form-group">
+                <label for="admin_password">Admin Password</label>
+                <input type="password" id="admin_password" name="admin_password" class="form-control" placeholder="Enter custom admin password">
+            </div>
+            <button type="submit" class="btn btn-pop btn-block" style="margin-top: 10px; background: #e74c3c;">Login as Admin</button>
+        </form>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <p>Don't have an account? <a href="{{ url_for('register') }}" style="color: var(--primary-light);">Register</a></p>
+        </div>
+    </div>
+</div>
+
+<script>
+    function switchLogin(type) {
+        const userForm = document.getElementById('userForm');
+        const adminForm = document.getElementById('adminForm');
+        const userToggle = document.getElementById('userToggle');
+        const adminToggle = document.getElementById('adminToggle');
+        const slider = document.getElementById('toggleSlider');
+
+        if (type === 'admin') {
+            userForm.classList.remove('active');
+            adminForm.classList.add('active');
+            userToggle.classList.remove('active');
+            adminToggle.classList.add('active');
+            slider.style.transform = 'translateX(100%)';
+            document.getElementById('admin_email').required = true;
+            document.getElementById('admin_password').required = true;
+            document.getElementById('username').required = false;
+            document.getElementById('password').required = false;
+        } else {
+            adminForm.classList.remove('active');
+            userForm.classList.add('active');
+            adminToggle.classList.remove('active');
+            userToggle.classList.add('active');
+            slider.style.transform = 'translateX(0)';
+            document.getElementById('username').required = true;
+            document.getElementById('password').required = true;
+            document.getElementById('admin_email').required = false;
+            document.getElementById('admin_password').required = false;
+        }
+    }
+</script>
+{% endblock %}
