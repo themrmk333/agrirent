@@ -24,9 +24,9 @@
         </form>
     </div>
 
-    <div class="grid">
+    <div class="equipment-grid grid">
         {% for eq in equipment %}
-        <div class="card glass-panel">
+        <div class="equipment-card card glass-panel">
             <img src="{{ url_for('static', filename='images/' + eq.image) }}" onerror="this.onerror=null; this.src='/static/images/default.jpg';">
             <div class="card-body">
                 <span class="card-badge">{{ eq.category }}</span>

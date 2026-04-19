@@ -103,7 +103,22 @@ body {
     margin: 40px auto;
     padding: 0 20px;
     flex: 1;
+    /* width: 100% removed to avoid horizontal shift issues on desktop */
+}
+
+/* Hero Section Layout (Desktop Restored) */
+.hero {
+    display: flex;
+    justify-content: center;
+    align-items: center;
     width: 100%;
+    min-height: 80vh;
+}
+
+.hero-content {
+    margin: 0 auto;
+    max-width: 1200px;
+    text-align: center;
 }
 
 /* Buttons */
@@ -249,6 +264,23 @@ body {
     font-size: 0.85rem;
 }
 
+/* Form Input Styling */
+input, select, textarea {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
+}
+
+input:focus {
+    outline: none;
+    border-color: var(--primary-light);
+}
+
 /* Mobile Media Query */
 @media (max-width: 768px) {
     .navbar {
@@ -373,8 +405,152 @@ body {
     box-shadow: 0 5px 20px rgba(0,0,0,0.3);
 }
 
+/* Mobile Media Query (Enhanced for Global Support) */
 @media (max-width: 768px) {
-    .sticky-mobile-btn {
-        display: block;
-    }
+  .container {
+    display: flex;
+    flex-direction: column;
+    padding: 0 15px;
+  }
+
+  .card, .equipment-card, .box, .glass-panel {
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .navbar {
+    flex-direction: column;
+    text-align: center;
+    padding: 15px;
+  }
+
+  .navbar-nav {
+    margin-top: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  input, select, textarea, button, .btn {
+    width: 100% !important;
+    margin-bottom: 10px;
+  }
+
+  .search-bar {
+    flex-direction: column;
+  }
+  
+  .card-actions {
+    flex-direction: column;
+  }
+}
+
+/* Equipment Section specific improvements */
+@media (max-width: 768px) {
+  .sticky-mobile-btn {
+    display: block;
+  }
+  .equipment-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .equipment-card {
+    border-radius: 12px !important;
+    background: white !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    padding: 0 !important;
+    margin: 8px !important;
+    color: #333333 !important;
+    border: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    width: auto !important; /* Allow grid to control width */
+  }
+  .equipment-card img {
+    width: 100% !important;
+    height: 150px !important;
+    object-fit: cover !important;
+  }
+
+  .equipment-card .card-body {
+    padding: 10px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+  }
+
+  .equipment-card .card-title {
+    color: #333333 !important;
+    font-size: 0.95rem !important;
+    margin-bottom: 4px !important;
+    font-weight: 700 !important;
+  }
+
+  .equipment-card .card-price {
+    font-size: 1.1rem !important;
+    color: var(--primary-color) !important;
+    margin-bottom: 8px !important;
+    font-weight: 700 !important;
+  }
+
+  .equipment-card .card-badge {
+    background: rgba(46, 125, 50, 0.1) !important;
+    color: var(--primary-color) !important;
+    margin-bottom: 6px !important;
+  }
+  
+  .equipment-card .card-actions {
+    margin-top: auto !important;
+    gap: 5px !important;
+  }
+}
+
+/* Button styles inside equipment cards only */
+.equipment-card .btn {
+  border-radius: 20px !important;
+  padding: 6px 10px !important;
+  transition: 0.2s ease !important;
+}
+
+.equipment-card .btn:active {
+  transform: scale(0.97) !important;
+}
+
+/* Safe animation for equipment cards */
+.equipment-card {
+  transition: transform 0.2s ease !important;
+}
+
+.equipment-card:hover {
+  transform: translateY(-3px) !important;
+}
+
+/* === SAFE RESPONSIVE DESIGN (RESTORATION BLOCK) === */
+@media (max-width: 768px) {
+
+  .container, .hero {
+    flex-direction: column !important;
+    text-align: center;
+  }
+
+  .hero-text, .hero-image {
+    width: 100% !important;
+  }
+
+  .navbar {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .card, .equipment-card {
+    width: 100% !important;
+  }
+
+  input, button {
+    width: 100%;
+  }
+
 }

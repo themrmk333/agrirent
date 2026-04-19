@@ -23,9 +23,9 @@
     <!-- Seasonal Trending -->
     <div style="margin-bottom: 40px;">
         <h3 style="margin-bottom: 16px; font-weight: 600; color: var(--accent-color);">🔥 Trending: {{ trending_cat }}</h3>
-        <div class="grid">
+        <div class="equipment-grid grid">
             {% for eq in trending_eq %}
-            <div class="card glass-panel">
+            <div class="equipment-card card glass-panel">
                 <img src="{{ url_for('static', filename='images/' + eq.image) }}" onerror="this.onerror=null; this.src='/static/images/default.jpg';">
                 <div class="card-body">
                     <span class="card-badge">Seasonal Demand</span>
@@ -47,9 +47,9 @@
     {% if recommended_eq %}
     <div style="margin-bottom: 40px;">
         <h3 style="margin-bottom: 16px; font-weight: 600; color: var(--accent-light, #f39c12);">✨ You May Also Like</h3>
-        <div class="grid">
+        <div class="equipment-grid grid">
             {% for eq in recommended_eq %}
-            <div class="card glass-panel" style="border: 1px solid rgba(243, 156, 18, 0.3);">
+            <div class="equipment-card card glass-panel" style="border: 1px solid rgba(243, 156, 18, 0.3);">
                 <img src="{{ url_for('static', filename='images/' + eq.image) }}" onerror="this.onerror=null; this.src='/static/images/default.jpg';">
                 <div class="card-body">
                     <span class="card-badge" style="background-color: var(--accent-color, #f39c12); color: #fff;">Recommended</span>
