@@ -575,6 +575,24 @@ def payment():
         'total_amount': total_amount
     }
 
+    cur.close()
+    conn.close()
+
+    return render_template('payment.html', equipment=eq, start_date=start_date, end_date=end_date, total_days=total_days, total_amount=total_amount)
+
+@app.route('/initiate_payment', methods=['POST'])
+def initiate_payment():
+    if 'user_id' not in session or 'pending_booking' not in session:
+        return redirect(url_for('login'))
+        
+    agreement = request.form.get('agreement')
+    if not agreement:
+        flash('Please accept agreement to continue', 'error')
+        return redirect(url_for('dashboard'))
+
+    # Store agreement in session temporarily
+    session['pending_booking']['agreement_accepted'] = 1
+
     # OTP Generation Logic
     otp = random.randint(100000, 999999)
     session['otp'] = str(otp)
@@ -583,73 +601,49 @@ def payment():
     
     # Simulation: Print to console and alert user
     print(f"\n[SECURITY] OTP for {session['username']}: {otp}\n")
-    flash('🔐 For your security, a 6-digit OTP has been sent to your registered mobile number.', 'info')
-
-    cur.close()
-    conn.close()
+    flash('🔐 An OTP has been sent to your registered mobile number to authorize payment.', 'info')
 
     return redirect(url_for('otp_verify'))
 
-@app.route('/otp_verify', methods=['GET', 'POST'])
+@app.route('/otp_verify')
 def otp_verify():
     if 'user_id' not in session or 'otp' not in session:
         return redirect(url_for('dashboard'))
-
-    if request.method == 'POST':
-        entered_otp = request.form.get('otp')
-        current_time = time.time()
-        
-        # Security: Max attempts check
-        session['otp_attempts'] = session.get('otp_attempts', 0) + 1
-        if session['otp_attempts'] > 3:
-            session.pop('otp', None)
-            session.pop('pending_booking', None)
-            flash('Too many failed attempts. Transaction blocked for security.', 'error')
-            return redirect(url_for('dashboard'))
-            
-        # Security: Expiry check (120 seconds)
-        if current_time - session.get('otp_time', 0) > 120:
-            session.pop('otp', None)
-            flash('OTP has expired. Please try booking again.', 'error')
-            return redirect(url_for('dashboard'))
-
-        if entered_otp == session['otp']:
-            # Success! Clear OTP and proceed to payment
-            session.pop('otp', None)
-            session.pop('otp_time', None)
-            session.pop('otp_attempts', None)
-            
-            # Fetch equipment details again for the payment page
-            booking_data = session['pending_booking']
-            conn = get_db()
-            cur = get_cursor(conn)
-            cur.execute('SELECT * FROM equipment WHERE id = %s', (booking_data['equipment_id'],))
-            eq = cur.fetchone()
-            cur.close()
-            conn.close()
-            
-            return render_template('payment.html', 
-                                   equipment=eq, 
-                                   start_date=booking_data['start_date'], 
-                                   end_date=booking_data['end_date'], 
-                                   total_days=booking_data['total_days'], 
-                                   total_amount=booking_data['total_amount'])
-        else:
-            flash(f'Invalid OTP. {3 - session["otp_attempts"]} attempts remaining.', 'error')
-
     return render_template('otp_verify.html')
 
 
 @app.route('/process_payment', methods=['POST'])
 def process_payment():
-    if 'user_id' not in session or 'pending_booking' not in session:
+    if 'user_id' not in session or 'pending_booking' not in session or 'otp' not in session:
         return redirect(url_for('login'))
 
-    agreement = request.form.get('agreement')
-    if not agreement:
-        flash('Please accept agreement to continue', 'error')
+    entered_otp = request.form.get('otp')
+    current_time = time.time()
+    
+    # 1. Security Check: Attempts
+    session['otp_attempts'] = session.get('otp_attempts', 0) + 1
+    if session['otp_attempts'] > 3:
+        session.pop('otp', None)
+        session.pop('pending_booking', None)
+        flash('Too many failed attempts. Security lock triggered.', 'error')
         return redirect(url_for('dashboard'))
 
+    # 2. Security Check: Expiry
+    if current_time - session.get('otp_time', 0) > 120:
+        session.pop('otp', None)
+        flash('OTP expired. Please try again.', 'error')
+        return redirect(url_for('dashboard'))
+
+    # 3. OTP Verification
+    if entered_otp != session['otp']:
+        flash(f'Invalid OTP. {3 - session["otp_attempts"]} attempts remaining.', 'error')
+        return redirect(url_for('otp_verify'))
+
+    # Success! Finalize booking
+    session.pop('otp', None)
+    session.pop('otp_time', None)
+    session.pop('otp_attempts', None)
+    
     booking_data = session.pop('pending_booking')
 
     conn = get_db()

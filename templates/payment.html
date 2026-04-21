@@ -20,7 +20,7 @@
             </p>
         </div>
 
-        <form action="{{ url_for('process_payment') }}" method="POST" id="paymentForm">
+        <form action="{{ url_for('initiate_payment') }}" method="POST" id="paymentForm">
             <div class="form-group">
                 <label for="paymentMethod">Payment Method</label>
                 <select id="paymentMethod" class="form-control" style="background-color: var(--bg-dark);">

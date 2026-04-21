@@ -9,7 +9,7 @@
         
         <div style="font-size: 3rem; margin-bottom: 20px; opacity: 0.9;">🔐</div>
 
-        <form action="{{ url_for('otp_verify') }}" method="POST">
+        <form action="{{ url_for('process_payment') }}" method="POST">
             <div class="form-group">
                 <label for="otp" style="font-size: 1.1rem; margin-bottom: 15px; display: block;">Verification Code</label>
                 <input type="text" id="otp" name="otp" class="form-control" 
