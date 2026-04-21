@@ -43,6 +43,23 @@
                 <strong>Total Amount:</strong>
                 <strong style="color: var(--accent-color);">₹ {{ booking.total_amount }}</strong>
             </div>
+            
+            {% if booking.status == 'Cancelled' %}
+            <div style="margin-top: 20px; padding: 15px; background: rgba(220, 53, 69, 0.15); border-radius: 8px; border: 1px solid rgba(220, 53, 69, 0.3);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem;">
+                    <span style="opacity: 0.8;">Status:</span>
+                    <strong style="color: #dc3545;">Cancelled</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem;">
+                    <span style="opacity: 0.8;">Deduction (20%):</span>
+                    <strong>₹ {{ ((booking.total_amount or 0) * 0.20) | round(2) }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 1.2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; margin-top: 10px;">
+                    <strong>Refund (80%):</strong>
+                    <strong style="color: #4caf50;">₹ {{ booking.refund_amount }}</strong>
+                </div>
+            </div>
+            {% endif %}
         </div>
         
         <div style="text-align: center; margin-top: 40px; display: flex; gap: 15px; justify-content: center;">

@@ -103,8 +103,8 @@
                                         
                                         {% if b.status == 'Confirmed' %}
                                         <a href="{{ url_for('booking', eq_id=b.equipment_id) }}" class="btn btn-pop" style="background:#17a2b8; padding: 4px 8px; font-size:0.8rem; margin-top:4px;">Extend</a>
-                                        <form action="{{ url_for('cancel_booking', booking_id=b.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to cancel this booking?');">
-                                            <button type="submit" class="btn btn-pop" style="background:#dc3545; padding: 4px 8px; font-size:0.8rem; margin-top:4px;">Cancel</button>
+                                        <form action="{{ url_for('cancel_booking', booking_id=b.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure? 20% amount will be deducted.');">
+                                            <button type="submit" class="btn btn-pop" style="background:#dc3545; padding: 4px 8px; font-size:0.8rem; margin-top:4px;">Cancel Booking</button>
                                         </form>
                                         {% endif %}
                                         

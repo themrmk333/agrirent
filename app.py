@@ -3,6 +3,8 @@ import psycopg2
 import psycopg2.extras
 import datetime
 import os
+import random
+import time
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
@@ -131,6 +133,7 @@ def init_db():
         phone_number TEXT,
         total_days INTEGER DEFAULT 1,
         total_amount REAL DEFAULT 0.0,
+        refund_amount REAL DEFAULT 0.0,
         agreement_accepted INTEGER DEFAULT 0,
         damage_fee_paid INTEGER DEFAULT 1,
         FOREIGN KEY (user_id) REFERENCES users (id),
@@ -572,10 +575,69 @@ def payment():
         'total_amount': total_amount
     }
 
+    # OTP Generation Logic
+    otp = random.randint(100000, 999999)
+    session['otp'] = str(otp)
+    session['otp_time'] = time.time()
+    session['otp_attempts'] = 0
+    
+    # Simulation: Print to console and alert user
+    print(f"\n[SECURITY] OTP for {session['username']}: {otp}\n")
+    flash('🔐 For your security, a 6-digit OTP has been sent to your registered mobile number.', 'info')
+
     cur.close()
     conn.close()
 
-    return render_template('payment.html', equipment=eq, start_date=start_date, end_date=end_date, total_days=total_days, total_amount=total_amount)
+    return redirect(url_for('otp_verify'))
+
+@app.route('/otp_verify', methods=['GET', 'POST'])
+def otp_verify():
+    if 'user_id' not in session or 'otp' not in session:
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        entered_otp = request.form.get('otp')
+        current_time = time.time()
+        
+        # Security: Max attempts check
+        session['otp_attempts'] = session.get('otp_attempts', 0) + 1
+        if session['otp_attempts'] > 3:
+            session.pop('otp', None)
+            session.pop('pending_booking', None)
+            flash('Too many failed attempts. Transaction blocked for security.', 'error')
+            return redirect(url_for('dashboard'))
+            
+        # Security: Expiry check (120 seconds)
+        if current_time - session.get('otp_time', 0) > 120:
+            session.pop('otp', None)
+            flash('OTP has expired. Please try booking again.', 'error')
+            return redirect(url_for('dashboard'))
+
+        if entered_otp == session['otp']:
+            # Success! Clear OTP and proceed to payment
+            session.pop('otp', None)
+            session.pop('otp_time', None)
+            session.pop('otp_attempts', None)
+            
+            # Fetch equipment details again for the payment page
+            booking_data = session['pending_booking']
+            conn = get_db()
+            cur = get_cursor(conn)
+            cur.execute('SELECT * FROM equipment WHERE id = %s', (booking_data['equipment_id'],))
+            eq = cur.fetchone()
+            cur.close()
+            conn.close()
+            
+            return render_template('payment.html', 
+                                   equipment=eq, 
+                                   start_date=booking_data['start_date'], 
+                                   end_date=booking_data['end_date'], 
+                                   total_days=booking_data['total_days'], 
+                                   total_amount=booking_data['total_amount'])
+        else:
+            flash(f'Invalid OTP. {3 - session["otp_attempts"]} attempts remaining.', 'error')
+
+    return render_template('otp_verify.html')
 
 
 @app.route('/process_payment', methods=['POST'])
@@ -750,15 +812,36 @@ def cancel_booking(booking_id):
 
     conn = get_db()
     cur = get_cursor(conn)
-    cur.execute('SELECT * FROM bookings WHERE id = %s AND user_id = %s', (booking_id, session['user_id']))
+    
+    # Securely fetch booking - only if it belongs to the user
+    cur.execute('SELECT * FROM bookings WHERE id = %s', (booking_id,))
     b = cur.fetchone()
-    if b and b['status'] == 'Confirmed':
-        cur.execute('UPDATE bookings SET status = %s WHERE id = %s', ('Cancelled', booking_id))
+    
+    if not b:
+        flash('Booking not found.', 'error')
+    elif b['user_id'] != session['user_id']:
+        # Security: Prevent unauthorized cancellation
+        flash('Unauthorized action.', 'error')
+    elif b['status'] == 'Cancelled':
+        # Prevent double cancellation
+        flash('Booking already cancelled.', 'info')
+    elif b['status'] != 'Confirmed':
+        flash('This booking cannot be cancelled at its current status.', 'error')
+    else:
+        # Proceed with cancellation
+        total = b['total_amount'] or 0
+        # Accurate 20% deduction (80% refund) with rounding
+        refund = round(float(total) * 0.80, 2)
+        
+        cur.execute("UPDATE bookings SET status = 'Cancelled', refund_amount = %s WHERE id = %s", (refund, booking_id))
         cur.execute('UPDATE equipment SET quantity = quantity + 1 WHERE id = %s', (b['equipment_id'],))
         conn.commit()
+        
+        # Professional dynamic feedback
+        flash(f'Booking cancelled. ₹{refund:,.2f} refunded after 20% deduction.', 'success')
+        
     cur.close()
     conn.close()
-    flash('Booking cancelled successfully.', 'success')
     return redirect(url_for('dashboard'))
 
 

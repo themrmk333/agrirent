@@ -12,8 +12,11 @@
             <p><strong>Item:</strong> {{ equipment.name }}</p>
             <p><strong>Dates:</strong> {{ start_date }} to {{ end_date }} ({{ total_days }} Days)</p>
             <p><strong>Price per Day:</strong> ₹ {{ equipment.price }}</p>
-            <p style="font-size: 1.2rem; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 12px; padding-top: 12px;">
+            <p style="font-size: 1.2rem; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 12px; padding-top: 12px; margin-bottom: 8px;">
                 <strong>Amount to Pay:</strong> <span style="color: var(--accent-light, #f39c12);">₹ {{ total_amount }}</span>
+            </p>
+            <p style="color: #ff4d4d; font-size: 0.9rem; padding: 8px; background: rgba(220, 53, 69, 0.1); border-radius: 4px; border-left: 3px solid #ff4d4d;">
+                ⚠️ If you cancel this booking, 20% of the total amount will be deducted.
             </p>
         </div>
 
