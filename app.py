@@ -556,7 +556,8 @@ def payment():
         AND status IN ('Confirmed', 'Damage Pending')
         AND start_date IS NOT NULL
         AND (start_date <= %s AND end_date >= %s)''', (eq_id, end_date, start_date))
-    overlap_count = cur.fetchone()['count']
+    row = cur.fetchone()
+    overlap_count = row[0] if row else 0
 
     if overlap_count >= eq['quantity']:
         flash('This equipment is fully booked for selected dates', 'error')
@@ -848,17 +849,21 @@ def admin_dashboard():
     conn = get_db()
     cur = get_cursor(conn)
 
-    cur.execute('SELECT COUNT(*) as cnt FROM users')
-    total_users = cur.fetchone()['cnt']
+    cur.execute('SELECT COUNT(*) FROM users')
+    row = cur.fetchone()
+    total_users = row[0] if row else 0
 
-    cur.execute('SELECT COUNT(*) as cnt FROM equipment')
-    total_eq = cur.fetchone()['cnt']
+    cur.execute('SELECT COUNT(*) FROM equipment')
+    row = cur.fetchone()
+    total_eq = row[0] if row else 0
 
-    cur.execute("SELECT COUNT(*) as cnt FROM bookings WHERE status = 'Confirmed'")
-    total_bookings = cur.fetchone()['cnt']
+    cur.execute("SELECT COUNT(*) FROM bookings WHERE status = 'Confirmed'")
+    row = cur.fetchone()
+    total_bookings = row[0] if row else 0
 
-    cur.execute("SELECT COUNT(*) as cnt FROM bookings WHERE status = 'Cancelled'")
-    cancelled_bookings = cur.fetchone()['cnt']
+    cur.execute("SELECT COUNT(*) FROM bookings WHERE status = 'Cancelled'")
+    row = cur.fetchone()
+    cancelled_bookings = row[0] if row else 0
 
     cur.execute('SELECT id, username, full_name, phone, city FROM users')
     all_users = cur.fetchall()
@@ -870,7 +875,7 @@ def admin_dashboard():
         "WHERE b.status = 'Confirmed'"
     )
     tp_row = cur.fetchone()
-    total_profit = tp_row['total_profit'] if tp_row and tp_row['total_profit'] else 0
+    total_profit = tp_row[0] if tp_row and tp_row[0] else 0
 
     cur.execute(
         'SELECT b.id, u.username, e.name as equipment_name, b.date, b.status, e.price '
