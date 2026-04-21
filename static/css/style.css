@@ -21,6 +21,11 @@
     font-family: 'Inter', sans-serif;
 }
 
+img {
+  max-width: 100%;
+  height: auto;
+}
+
 body {
     background-color: var(--bg-dark);
     color: var(--text-color);
@@ -528,10 +533,15 @@ input:focus {
   transform: translateY(-3px) !important;
 }
 
-/* === SAFE RESPONSIVE DESIGN (RESTORATION BLOCK) === */
+/* === MOBILE RESPONSIVE PRESETS === */
 @media (max-width: 768px) {
 
+  body {
+    padding: 10px;
+  }
+
   .container, .hero {
+    display: flex;
     flex-direction: column !important;
     text-align: center;
   }
@@ -545,8 +555,12 @@ input:focus {
     align-items: center;
   }
 
-  .card, .equipment-card {
+  .card, .equipment-card, .box {
     width: 100% !important;
+  }
+  
+  .grid, .equipment-grid {
+    grid-template-columns: 1fr !important;
   }
 
   input, button {
