@@ -10,8 +10,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = 'agrirent_secret_key'
 
-DATABASE_URL_ENV = os.getenv("DATABASE_URL")
-IS_POSTGRES = bool(DATABASE_URL_ENV)
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 ADMIN_EMAIL = "admin@gmail.com"
 ADMIN_PASSWORD = "@mr.mk333"
@@ -20,78 +19,17 @@ ADMIN_PASSWORD = "@mr.mk333"
 UPLOAD_FOLDER = 'static/images'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-class DBCursor:
-    def __init__(self, cur, is_pg):
-        self.cur = cur
-        self.is_pg = is_pg
-        self._mock_fetchone = None
-
-    def execute(self, query, vars=None):
-        is_returning_id = False
-        if not self.is_pg:
-            query = query.replace('SERIAL PRIMARY KEY', 'INTEGER PRIMARY KEY AUTOINCREMENT')
-            query = query.replace('%s', '?')
-            query = query.replace("TO_CHAR(TO_DATE(date, 'YYYY-MM-DD'), 'MM')", "strftime('%m', date)")
-            query = query.replace("TO_CHAR(TO_DATE(b.date, 'YYYY-MM-DD'), 'MM')", "strftime('%m', b.date)")
-            query = query.replace("TO_CHAR(TO_DATE(date, 'YYYY-MM-DD'), 'IW')", "strftime('%W', date)")
-            
-            if 'RETURNING id' in query:
-                query = query.replace('RETURNING id', '')
-                is_returning_id = True
-        
-        if vars is not None:
-            res = self.cur.execute(query, vars)
-        else:
-            res = self.cur.execute(query)
-            
-        if is_returning_id and not self.is_pg:
-            self._mock_fetchone = [self.cur.lastrowid]
-            
-        return res
-
-    def executemany(self, query, vars):
-        if not self.is_pg:
-            query = query.replace('SERIAL PRIMARY KEY', 'INTEGER PRIMARY KEY AUTOINCREMENT')
-            query = query.replace('%s', '?')
-        return self.cur.executemany(query, vars)
-
-    def fetchone(self):
-        if self._mock_fetchone is not None:
-            res = self._mock_fetchone
-            self._mock_fetchone = None
-            return res
-        return self.cur.fetchone()
-        
-    def fetchall(self): return self.cur.fetchall()
-    def close(self): self.cur.close()
 
 def get_db():
-    DATABASE_URL = os.getenv("DATABASE_URL")
-
-    # If running locally (no env variable)
-    if not DATABASE_URL:
-        DATABASE_URL = "sqlite:///local.db"
-        import sqlite3
-        conn = sqlite3.connect("local.db")
-        conn.row_factory = sqlite3.Row
-        return conn
-
-    # If running on Render (PostgreSQL)
-    else:
-        conn = psycopg2.connect(DATABASE_URL)
-        return conn
+    return psycopg2.connect(DATABASE_URL)
 
 def get_cursor(conn):
-    if IS_POSTGRES:
-        import psycopg2.extras
-        return DBCursor(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor), IS_POSTGRES)
-    else:
-        return DBCursor(conn.cursor(), IS_POSTGRES)
+    return conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
 
 def init_db():
     conn = get_db()
-    cur = DBCursor(conn.cursor(), IS_POSTGRES)
+    cur = conn.cursor()
     cur.execute('''
     CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -147,7 +85,7 @@ def init_db():
 
 def seed_db():
     conn = get_db()
-    cur = DBCursor(conn.cursor(), IS_POSTGRES)
+    cur = conn.cursor()
 
     # Only seed if equipment table is empty
     cur.execute("SELECT COUNT(*) FROM equipment")
@@ -470,7 +408,7 @@ def add_equipment():
             image_file.save(filepath)
 
         conn = get_db()
-        cur = DBCursor(conn.cursor(), IS_POSTGRES)
+        cur = conn.cursor()
         cur.execute(
             '''INSERT INTO equipment (name, category, price, image, location, owner_id, quantity, damage_charge)
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
@@ -648,7 +586,7 @@ def process_payment():
     booking_data = session.pop('pending_booking')
 
     conn = get_db()
-    cur = DBCursor(conn.cursor(), IS_POSTGRES)
+    cur = conn.cursor()
     cur.execute(
         '''INSERT INTO bookings (user_id, equipment_id, date, status, start_date, end_date, phone_number, total_days, total_amount, agreement_accepted, damage_fee_paid)
            VALUES (%s, %s, %s, 'Confirmed', %s, %s, %s, %s, %s, 1, 1) RETURNING id''',
@@ -783,7 +721,7 @@ def delete_user(user_id):
         return redirect(url_for('admin_dashboard'))
 
     conn = get_db()
-    cur = DBCursor(conn.cursor(), IS_POSTGRES)
+    cur = conn.cursor()
     try:
         cur.execute("UPDATE bookings SET status = 'Deleted User' WHERE user_id = %s", (user_id,))
         cur.execute('UPDATE equipment SET owner_id = 1 WHERE owner_id = %s', (user_id,))
