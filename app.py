@@ -12,6 +12,9 @@ app.secret_key = 'agrirent_secret_key'
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+if not DATABASE_URL:
+    DATABASE_URL = "postgresql://agrirent_db_l8fu_user:6xMbksbAC1SYEVlhoLDumN920SoZyodB@dpg-d7jov4jeo5us73adu7b0-a.oregon-postgres.render.com/agrirent_db_l8fu"
+
 ADMIN_EMAIL = "admin@gmail.com"
 ADMIN_PASSWORD = "@mr.mk333"
 
@@ -85,11 +88,12 @@ def init_db():
 
 def seed_db():
     conn = get_db()
-    cur = conn.cursor()
+    cur = get_cursor(conn)
 
     # Only seed if equipment table is empty
-    cur.execute("SELECT COUNT(*) FROM equipment")
-    if cur.fetchone()[0] == 0:
+    cur.execute("SELECT COUNT(*) AS count FROM equipment")
+    row = cur.fetchone()
+    if row['count'] == 0:
         sample_equipment = [
             ("Mahindra 575 DI", "Tractor", 1500, "mahindra_575.jpg", "Maharashtra", 1),
             ("Mahindra 475 DI", "Tractor", 1400, "mahindra_475.jpg", "Maharashtra", 1),
@@ -113,8 +117,9 @@ def seed_db():
         )
 
     # Only seed admin user if users table is empty
-    cur.execute("SELECT COUNT(*) FROM users")
-    if cur.fetchone()[0] == 0:
+    cur.execute("SELECT COUNT(*) AS count FROM users")
+    row = cur.fetchone()
+    if row['count'] == 0:
         admin_pass = generate_password_hash("admin")
         cur.execute(
             "INSERT INTO users (username, password, is_admin) VALUES (%s, %s, %s)",
@@ -490,13 +495,13 @@ def payment():
         flash('Sorry, this equipment is out of stock', 'error')
         return redirect(url_for('equipment'))
 
-    cur.execute('''SELECT COUNT(*) FROM bookings
+    cur.execute('''SELECT COUNT(*) AS count FROM bookings
         WHERE equipment_id = %s
         AND status IN ('Confirmed', 'Damage Pending')
         AND start_date IS NOT NULL
         AND (start_date <= %s AND end_date >= %s)''', (eq_id, end_date, start_date))
     row = cur.fetchone()
-    overlap_count = row[0] if row else 0
+    overlap_count = row['count'] if row else 0
 
     if overlap_count >= eq['quantity']:
         flash('This equipment is fully booked for selected dates', 'error')
@@ -788,21 +793,21 @@ def admin_dashboard():
     conn = get_db()
     cur = get_cursor(conn)
 
-    cur.execute('SELECT COUNT(*) FROM users')
+    cur.execute('SELECT COUNT(*) AS count FROM users')
     row = cur.fetchone()
-    total_users = row[0] if row else 0
+    total_users = row['count'] if row else 0
 
-    cur.execute('SELECT COUNT(*) FROM equipment')
+    cur.execute('SELECT COUNT(*) AS count FROM equipment')
     row = cur.fetchone()
-    total_eq = row[0] if row else 0
+    total_eq = row['count'] if row else 0
 
-    cur.execute("SELECT COUNT(*) FROM bookings WHERE status = 'Confirmed'")
+    cur.execute("SELECT COUNT(*) AS count FROM bookings WHERE status = 'Confirmed'")
     row = cur.fetchone()
-    total_bookings = row[0] if row else 0
+    total_bookings = row['count'] if row else 0
 
-    cur.execute("SELECT COUNT(*) FROM bookings WHERE status = 'Cancelled'")
+    cur.execute("SELECT COUNT(*) AS count FROM bookings WHERE status = 'Cancelled'")
     row = cur.fetchone()
-    cancelled_bookings = row[0] if row else 0
+    cancelled_bookings = row['count'] if row else 0
 
     cur.execute('SELECT id, username, full_name, phone, city FROM users')
     all_users = cur.fetchall()
@@ -814,7 +819,7 @@ def admin_dashboard():
         "WHERE b.status = 'Confirmed'"
     )
     tp_row = cur.fetchone()
-    total_profit = tp_row[0] if tp_row and tp_row[0] else 0
+    total_profit = tp_row['total_profit'] if tp_row and tp_row['total_profit'] else 0
 
     cur.execute(
         'SELECT b.id, u.username, e.name as equipment_name, b.date, b.status, e.price '
