@@ -89,8 +89,7 @@ def seed_db():
 
     # Only seed if equipment table is empty
     cur.execute("SELECT COUNT(*) FROM equipment")
-    count = cur.fetchone()[0]
-    if count == 0:
+    if cur.fetchone()[0] == 0:
         sample_equipment = [
             ("Mahindra 575 DI", "Tractor", 1500, "mahindra_575.jpg", "Maharashtra", 1),
             ("Mahindra 475 DI", "Tractor", 1400, "mahindra_475.jpg", "Maharashtra", 1),
@@ -113,12 +112,14 @@ def seed_db():
             sample_equipment
         )
 
-    # Only seed admin user if not already present
-    admin_pass = generate_password_hash("admin")
-    cur.execute(
-        "INSERT INTO users (username, password, is_admin) VALUES (%s, %s, %s) ON CONFLICT (username) DO NOTHING",
-        ("admin", admin_pass, 1)
-    )
+    # Only seed admin user if users table is empty
+    cur.execute("SELECT COUNT(*) FROM users")
+    if cur.fetchone()[0] == 0:
+        admin_pass = generate_password_hash("admin")
+        cur.execute(
+            "INSERT INTO users (username, password, is_admin) VALUES (%s, %s, %s)",
+            ("admin", admin_pass, 1)
+        )
 
     conn.commit()
     cur.close()
