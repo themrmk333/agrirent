@@ -4,7 +4,7 @@
     <div class="auth-container glass-panel" style="max-width: 600px;">
         <div class="auth-header">
             <h2>Secure Payment</h2>
-            <p>Complete your booking</p>
+            <p>Complete your booking via Razorpay</p>
         </div>
         
         <div style="background: rgba(46, 125, 50, 0.2); border: 1px solid var(--primary-color); padding: 16px; border-radius: 8px; margin-bottom: 24px;">
@@ -20,57 +20,54 @@
             </p>
         </div>
 
-        <form action="{{ url_for('initiate_payment') }}" method="POST" id="paymentForm">
-            <div class="form-group">
-                <label for="paymentMethod">Payment Method</label>
-                <select id="paymentMethod" class="form-control" style="background-color: var(--bg-dark);">
-                    <option value="card">Credit / Debit Card</option>
-                    <option value="upi">UPI</option>
-                </select>
-            </div>
-            
-            <div id="cardDetails">
-                <div class="form-group">
-                    <label for="cardNumber">Card Number</label>
-                    <input type="text" id="cardNumber" class="form-control" placeholder="XXXX XXXX XXXX XXXX" pattern="\d{16}" title="16 digit card number">
-                </div>
-                <div style="display: flex; gap: 16px;">
-                    <div class="form-group" style="flex: 1;">
-                        <label for="expiry">Expiry (MM/YY)</label>
-                        <input type="text" id="expiry" class="form-control" placeholder="MM/YY">
-                    </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label for="cvv">CVV</label>
-                        <input type="password" id="cvv" class="form-control" placeholder="XXX" pattern="\d{3,4}">
-                    </div>
-                </div>
-            </div>
-            
-            <div id="upiDetails" style="display: none;">
-                <div class="form-group">
-                    <label for="upiId">UPI ID</label>
-                    <input type="text" id="upiId" class="form-control" placeholder="username@upi">
-                </div>
-            </div>
-            
-            <div class="form-group" style="margin-top: 20px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border-left: 4px solid var(--accent-light, #f39c12);">
-                <label style="display: flex; align-items: flex-start; cursor: pointer; gap: 10px;">
-                    <input type="checkbox" name="agreement" id="agreement" required style="margin-top: 5px; transform: scale(1.2);">
-                    <span style="font-size: 0.95rem;"><strong>Agreement:</strong> I agree that if any damage occurs to the equipment, I will pay the applicable charges.</span>
-                </label>
-            </div>
-            
-            <button type="submit" class="btn btn-accent btn-block" style="margin-top: 20px; font-size: 1.1rem;">Pay ₹ {{ total_amount }}</button>
+        <div class="form-group" style="margin-top: 20px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border-left: 4px solid var(--accent-light, #f39c12);">
+            <label style="display: flex; align-items: flex-start; cursor: pointer; gap: 10px;">
+                <input type="checkbox" name="agreement" id="agreement" required style="margin-top: 5px; transform: scale(1.2);">
+                <span style="font-size: 0.95rem;"><strong>Agreement:</strong> I agree that if any damage occurs to the equipment, I will pay the applicable charges.</span>
+            </label>
+        </div>
+        
+        <button id="rzp-button1" class="btn btn-accent btn-block" style="margin-top: 20px; font-size: 1.1rem;">Securely Pay ₹ {{ total_amount }}</button>
+
+        <form action="{{ url_for('verify_payment') }}" method="POST" id="verify-form">
+            <input type="hidden" name="razorpay_payment_id" id="razorpay_payment_id">
+            <input type="hidden" name="razorpay_order_id" id="razorpay_order_id">
+            <input type="hidden" name="razorpay_signature" id="razorpay_signature">
         </form>
     </div>
+
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script>
-        document.getElementById('paymentForm').addEventListener('submit', function(e) {
-            const agreement = document.getElementById('agreement');
-            if(!agreement.checked) {
-                e.preventDefault();
-                alert("Please accept agreement to continue");
+        var options = {
+            "key": "{{ razorpay_key_id }}",
+            "amount": "{{ total_amount * 100 }}", 
+            "currency": "INR",
+            "name": "AgriRent",
+            "description": "Booking for {{ equipment.name }}",
+            "order_id": "{{ razorpay_order_id }}",
+            "handler": function (response){
+                document.getElementById('razorpay_payment_id').value = response.razorpay_payment_id;
+                document.getElementById('razorpay_order_id').value = response.razorpay_order_id;
+                document.getElementById('razorpay_signature').value = response.razorpay_signature;
+                document.getElementById('verify-form').submit();
+            },
+            "prefill": {
+                "name": "{{ session['username'] }}",
+                "contact": "{{ phone_number }}"
+            },
+            "theme": {
+                "color": "#2e7d32"
             }
-        });
+        };
+        var rzp1 = new Razorpay(options);
+        document.getElementById('rzp-button1').onclick = function(e){
+            if (!document.getElementById('agreement').checked) {
+                alert("Please accept the agreement to continue.");
+                return;
+            }
+            rzp1.open();
+            e.preventDefault();
+        }
     </script>
 </div>
 {% endblock %}

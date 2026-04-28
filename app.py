@@ -5,6 +5,7 @@ import datetime
 import os
 import random
 import time
+import razorpay
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
@@ -21,6 +22,11 @@ ADMIN_PASSWORD = "@mr.mk333"
 # 🔥 ADDED
 UPLOAD_FOLDER = 'static/images'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Razorpay Configuration
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', 'rzp_test_uG6vS7n3H5kR6m')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', 'test_secret')
+razor_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 
 
 def get_db():
@@ -511,104 +517,93 @@ def payment():
 
     total_amount = float(eq['price']) * total_days
 
+    # Razorpay Order Creation
+    data = {
+        "amount": int(total_amount * 100), # Amount in paise
+        "currency": "INR",
+        "receipt": f"receipt_{int(time.time())}",
+        "payment_capture": 1
+    }
+    
+    try:
+        order = razor_client.order.create(data=data)
+        razorpay_order_id = order['id']
+    except Exception as e:
+        flash(f"Payment gateway error: {str(e)}", 'error')
+        cur.close()
+        conn.close()
+        return redirect(url_for('booking', eq_id=eq_id))
+
     session['pending_booking'] = {
         'equipment_id': eq_id,
         'start_date': start_date,
         'end_date': end_date,
         'phone_number': phone_number,
         'total_days': total_days,
-        'total_amount': total_amount
+        'total_amount': total_amount,
+        'razorpay_order_id': razorpay_order_id
     }
 
     cur.close()
     conn.close()
 
-    return render_template('payment.html', equipment=eq, start_date=start_date, end_date=end_date, total_days=total_days, total_amount=total_amount)
+    return render_template('payment.html', 
+                           equipment=eq, 
+                           start_date=start_date, 
+                           end_date=end_date, 
+                           total_days=total_days, 
+                           total_amount=total_amount,
+                           phone_number=phone_number,
+                           razorpay_order_id=razorpay_order_id,
+                           razorpay_key_id=RAZORPAY_KEY_ID)
 
-@app.route('/initiate_payment', methods=['POST'])
-def initiate_payment():
+@app.route('/verify_payment', methods=['POST'])
+def verify_payment():
     if 'user_id' not in session or 'pending_booking' not in session:
         return redirect(url_for('login'))
+
+    payment_id = request.form.get('razorpay_payment_id')
+    order_id = request.form.get('razorpay_order_id')
+    signature = request.form.get('razorpay_signature')
+
+    params_dict = {
+        'razorpay_order_id': order_id,
+        'razorpay_payment_id': payment_id,
+        'razorpay_signature': signature
+    }
+
+    try:
+        # Verify Razorpay signature
+        razor_client.utility.verify_payment_signature(params_dict)
         
-    agreement = request.form.get('agreement')
-    if not agreement:
-        flash('Please accept agreement to continue', 'error')
+        # If verification successful, finalize booking
+        booking_data = session.pop('pending_booking')
+        
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(
+            '''INSERT INTO bookings (user_id, equipment_id, date, status, start_date, end_date, phone_number, total_days, total_amount, agreement_accepted, damage_fee_paid)
+               VALUES (%s, %s, %s, 'Confirmed', %s, %s, %s, %s, %s, 1, 1) RETURNING id''',
+            (session['user_id'], booking_data['equipment_id'], booking_data['start_date'],
+             booking_data['start_date'], booking_data['end_date'], booking_data['phone_number'],
+             booking_data['total_days'], booking_data['total_amount'])
+        )
+        booking_id = cur.fetchone()[0]
+
+        cur.execute('UPDATE equipment SET quantity = quantity - 1 WHERE id = %s', (booking_data['equipment_id'],))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        flash('Payment successful! Booking confirmed.', 'success')
+        return redirect(url_for('receipt', booking_id=booking_id))
+
+    except razorpay.errors.SignatureVerificationError:
+        flash('Payment verification failed. Security breach detected.', 'error')
         return redirect(url_for('dashboard'))
-
-    # Store agreement in session temporarily
-    session['pending_booking']['agreement_accepted'] = 1
-
-    # OTP Generation Logic
-    otp = random.randint(100000, 999999)
-    session['otp'] = str(otp)
-    session['otp_time'] = time.time()
-    session['otp_attempts'] = 0
-    
-    # Simulation: Print to console and alert user
-    print(f"\n[SECURITY] OTP for {session['username']}: {otp}\n")
-    flash('🔐 An OTP has been sent to your registered mobile number to authorize payment.', 'info')
-
-    return redirect(url_for('otp_verify'))
-
-@app.route('/otp_verify')
-def otp_verify():
-    if 'user_id' not in session or 'otp' not in session:
+    except Exception as e:
+        flash(f'An error occurred: {str(e)}', 'error')
         return redirect(url_for('dashboard'))
-    return render_template('otp_verify.html')
-
-
-@app.route('/process_payment', methods=['POST'])
-def process_payment():
-    if 'user_id' not in session or 'pending_booking' not in session or 'otp' not in session:
-        return redirect(url_for('login'))
-
-    entered_otp = request.form.get('otp')
-    current_time = time.time()
-    
-    # 1. Security Check: Attempts
-    session['otp_attempts'] = session.get('otp_attempts', 0) + 1
-    if session['otp_attempts'] > 3:
-        session.pop('otp', None)
-        session.pop('pending_booking', None)
-        flash('Too many failed attempts. Security lock triggered.', 'error')
-        return redirect(url_for('dashboard'))
-
-    # 2. Security Check: Expiry
-    if current_time - session.get('otp_time', 0) > 120:
-        session.pop('otp', None)
-        flash('OTP expired. Please try again.', 'error')
-        return redirect(url_for('dashboard'))
-
-    # 3. OTP Verification
-    if entered_otp != session['otp']:
-        flash(f'Invalid OTP. {3 - session["otp_attempts"]} attempts remaining.', 'error')
-        return redirect(url_for('otp_verify'))
-
-    # Success! Finalize booking
-    session.pop('otp', None)
-    session.pop('otp_time', None)
-    session.pop('otp_attempts', None)
-    
-    booking_data = session.pop('pending_booking')
-
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        '''INSERT INTO bookings (user_id, equipment_id, date, status, start_date, end_date, phone_number, total_days, total_amount, agreement_accepted, damage_fee_paid)
-           VALUES (%s, %s, %s, 'Confirmed', %s, %s, %s, %s, %s, 1, 1) RETURNING id''',
-        (session['user_id'], booking_data['equipment_id'], booking_data['start_date'],
-         booking_data['start_date'], booking_data['end_date'], booking_data['phone_number'],
-         booking_data['total_days'], booking_data['total_amount'])
-    )
-    booking_id = cur.fetchone()[0]
-
-    cur.execute('UPDATE equipment SET quantity = quantity - 1 WHERE id = %s', (booking_data['equipment_id'],))
-    conn.commit()
-    cur.close()
-    conn.close()
-
-    flash('Payment successful! Booking confirmed.', 'success')
-    return redirect(url_for('receipt', booking_id=booking_id))
 
 
 @app.route('/receipt/<int:booking_id>')
