@@ -13,9 +13,37 @@
         .hero { background-size: cover; background-position: center; transition: background-size 0.5s ease-out; }
         .hero:hover { background-size: 105%; }
         .card-actions form { flex: 1; display: flex; }
+
+        /* Secure Context Warning Overlay */
+        #secure-context-warning {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95);
+            color: #ff4d4d;
+            z-index: 99999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+        }
     </style>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                const warning = document.getElementById('secure-context-warning');
+                if (warning) warning.style.display = 'flex';
+            }
+        });
+    </script>
 </head>
 <body>
+    <div id="secure-context-warning">
+        <i class="fas fa-exclamation-triangle" style="font-size: 4rem; margin-bottom: 20px;"></i>
+        <h1>Fingerprint Authentication requires HTTPS connection.</h1>
+        <p style="margin-top: 10px; font-size: 1.2rem; color: #fff;">Please use a secure connection to access biometric features.</p>
+    </div>
     <nav class="navbar">
         <div class="navbar-brand">
             <a href="/">🚜 AgriRent</a>

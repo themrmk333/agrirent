@@ -16,7 +16,7 @@
             </div>
         </div>
 
-        <form action="{{ url_for('payment') }}" method="POST">
+        <form id="bookingForm" action="{{ url_for('payment') }}" method="POST">
             <input type="hidden" name="equipment_id" value="{{ equipment.id }}">
             
             <div class="form-group">
@@ -39,10 +39,25 @@
                 Note: Cancellation incurs a 20% deduction from the total amount.
             </p>
             <p style="font-size: 0.85rem; color: #4facfe; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-                🔐 For your security, OTP verification will be required after submitting payment details.
+                🔐 Biometric verification will be required before payment.
             </p>
-            <button type="submit" class="btn btn-pop btn-block">Continue to Payment ➡️</button>
+            <button type="submit" class="btn btn-pop btn-block">Verify Fingerprint & Pay ➡️</button>
         </form>
+
+        <!-- Biometric Modal -->
+        <div id="bioModal" class="bio-modal">
+            <div class="bio-modal-content">
+                <div class="pulse"></div>
+                <div class="scanner-container">
+                    <div class="scanner-line"></div>
+                    <i class="fas fa-fingerprint fingerprint-icon"></i>
+                </div>
+                <h3 id="bioTitle">Payment Security</h3>
+                <p id="bioDesc">Please verify your fingerprint to authorize this payment.</p>
+                <div id="bioStatus" class="bio-status">AWAITING SCAN...</div>
+                <button type="button" id="cancelBio" class="cyber-btn">Cancel</button>
+            </div>
+        </div>
         <script>
             document.addEventListener("DOMContentLoaded", function() {
                 const today = new Date().toISOString().split('T')[0];

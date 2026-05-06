@@ -1,3 +1,6 @@
+console.log("BIO SCRIPT LOADED");
+console.log(window.PublicKeyCredential);
+console.log(location.origin);
 
 async function generateRegistrationOptions(username) {
     const response = await fetch('/api/bio/register-options', {
@@ -139,60 +142,89 @@ const BioAuth = {
     }
 };
 
-// STEP 3: Handle Registration Form Submission as requested
 document.addEventListener("DOMContentLoaded", () => {
-    const form = document.getElementById("registerForm");
-    if (!form) {
-        console.log("Register form not found");
-        return;
+    // 1. Handle Registration Form
+    const registerForm = document.getElementById("registerForm");
+    if (registerForm) {
+        console.log("Register form detected");
+        
+        registerForm.addEventListener("submit", async function(event) {
+            // If we already have the biometric data, let the form submit normally
+            if (document.getElementById('credential_id').value && document.getElementById('public_key').value) {
+                return;
+            }
+
+            event.preventDefault(); // STRICTLY PREVENT NORMAL FORM SUBMISSION
+            alert("Fingerprint process started");
+            console.log("Biometric Started for Registration");
+
+            if (!window.PublicKeyCredential) {
+                alert("Biometric authentication not supported on this device/browser. Use HTTPS.");
+                return;
+            }
+
+            try {
+                const usernameInput = document.getElementById('username');
+                const username = usernameInput ? usernameInput.value : "user_" + Date.now();
+                
+                const bioModal = document.getElementById('bioModal');
+                if (bioModal) bioModal.style.display = 'flex';
+
+                const result = await BioAuth.register(username);
+
+                if (result && result.success) {
+                    console.log("Biometric Success");
+                    document.getElementById('credential_id').value = result.credential_id;
+                    document.getElementById('public_key').value = result.public_key;
+                    alert("Fingerprint verification successful");
+                    registerForm.submit();
+                } else {
+                    throw new Error(result ? result.error : "Verification failed");
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Fingerprint verification failed: " + error.message);
+                const bioModal = document.getElementById('bioModal');
+                if (bioModal) bioModal.style.display = 'none';
+            }
+        });
     }
-    console.log("Biometric JS Loaded");
 
-    form.addEventListener("submit", async function(event) {
-        // If we already have the biometric data, let the form submit normally
-        if (document.getElementById('credential_id').value && document.getElementById('public_key').value) {
-            return;
-        }
+    // 2. Handle Payment Authentication (triggered in booking.html)
+    const bookingForm = document.getElementById("bookingForm");
+    if (bookingForm) {
+        bookingForm.addEventListener("submit", async function(event) {
+            if (bookingForm.dataset.bioVerified === "true") {
+                return;
+            }
 
-        event.preventDefault();
-        console.log("Biometric Started");
+            event.preventDefault();
+            alert("Fingerprint verification required for payment");
 
-        if (!window.PublicKeyCredential) {
-            alert("Biometric authentication not supported on this device");
-            return;
-        }
-
-        try {
-            const usernameInput = document.getElementById('username');
-            const username = usernameInput ? usernameInput.value : "user@agrirent.com";
-            
-            // Show the futuristic modal if it exists
             const bioModal = document.getElementById('bioModal');
             if (bioModal) bioModal.style.display = 'flex';
 
-            // We use the functional BioAuth.register to keep the system working
-            // but we maintain the structure and logs requested by the user.
-            const result = await BioAuth.register(username);
-
-            if (result && result.success) {
-                console.log("Biometric Success");
-                console.log(result);
-
-                // Save data to hidden fields
-                document.getElementById('credential_id').value = result.credential_id;
-                document.getElementById('public_key').value = result.public_key;
-
-                alert("Fingerprint verification successful");
-                form.submit();
-            } else {
-                throw new Error(result ? result.error : "Verification failed");
+            try {
+                const result = await BioAuth.authenticate(); // Uses session username
+                if (result && result.success) {
+                    alert("Fingerprint verified! Proceeding to payment...");
+                    bookingForm.dataset.bioVerified = "true";
+                    bookingForm.submit();
+                } else {
+                    throw new Error(result ? result.error : "Authentication failed");
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Fingerprint authentication failed. Payment blocked.");
+                if (bioModal) bioModal.style.display = 'none';
             }
-
-        } catch (error) {
-            console.log(error);
-            alert("Fingerprint verification failed");
+        });
+    // 3. Handle Cancel Button
+    const cancelBio = document.getElementById('cancelBio');
+    if (cancelBio) {
+        cancelBio.addEventListener('click', () => {
             const bioModal = document.getElementById('bioModal');
             if (bioModal) bioModal.style.display = 'none';
-        }
-    });
+        });
+    }
 });

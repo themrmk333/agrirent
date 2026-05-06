@@ -246,7 +246,7 @@ def bio_register_options():
     username = data.get('username')
     
     options = generate_registration_options(
-        rp_id=request.host.split(':')[0],
+        rp_id=request.host.split(':')[0].replace("www.", ""),
         rp_name="AgriRent",
         user_id=os.urandom(16),
         user_name=username,
@@ -274,8 +274,8 @@ def bio_verify_registration():
         verification = verify_registration_response(
             credential=data,
             expected_challenge=base64url_to_bytes(challenge),
-            expected_rp_id=request.host.split(':')[0],
-            expected_origin=f"{request.scheme}://{request.host}",
+            expected_rp_id=request.host.split(':')[0].replace("www.", ""),
+            expected_origin=f"https://{request.host.split(':')[0]}",
             require_user_verification=True
         )
         
@@ -305,8 +305,8 @@ def bio_enroll():
         verification = verify_registration_response(
             credential=data,
             expected_challenge=base64url_to_bytes(challenge),
-            expected_rp_id=request.host.split(':')[0],
-            expected_origin=f"{request.scheme}://{request.host}",
+            expected_rp_id=request.host.split(':')[0].replace("www.", ""),
+            expected_origin=f"https://{request.host.split(':')[0]}",
             require_user_verification=True
         )
         
@@ -343,7 +343,7 @@ def bio_authenticate_options():
         return json.dumps({"error": "Biometric not enabled for this account"}), 404
     
     options = generate_authentication_options(
-        rp_id=request.host.split(':')[0],
+        rp_id=request.host.split(':')[0].replace("www.", ""),
         allow_credentials=[{
             "id": base64url_to_bytes(user['biometric_credential_id']),
             "type": "public-key"
@@ -380,8 +380,8 @@ def bio_verify_authentication():
         verification = verify_authentication_response(
             credential=data,
             expected_challenge=base64url_to_bytes(challenge),
-            expected_rp_id=request.host.split(':')[0],
-            expected_origin=f"{request.scheme}://{request.host}",
+            expected_rp_id=request.host.split(':')[0].replace("www.", ""),
+            expected_origin=f"https://{request.host.split(':')[0]}",
             credential_public_key=base64url_to_bytes(user['biometric_public_key']),
             credential_current_sign_count=user['biometric_sign_count'],
             require_user_verification=True
