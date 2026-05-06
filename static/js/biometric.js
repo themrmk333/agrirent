@@ -89,6 +89,40 @@ const BioAuth = {
         }
     },
 
+    async enroll(username) {
+        try {
+            const options = await generateRegistrationOptions(username);
+            
+            options.challenge = base64urlToBuffer(options.challenge);
+            options.user.id = base64urlToBuffer(options.user.id);
+            if (options.excludeCredentials) {
+                options.excludeCredentials.forEach(c => c.id = base64urlToBuffer(c.id));
+            }
+
+            const credential = await navigator.credentials.create({ publicKey: options });
+            
+            const credentialJSON = {
+                id: credential.id,
+                rawId: bufferToBase64url(credential.rawId),
+                type: credential.type,
+                response: {
+                    attestationObject: bufferToBase64url(credential.response.attestationObject),
+                    clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
+                },
+            };
+
+            const response = await fetch('/api/bio/enroll', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(credentialJSON)
+            });
+            return await response.json();
+        } catch (err) {
+            console.error("Biometric Enrollment Error:", err);
+            throw err;
+        }
+    },
+
     async authenticate(username) {
         try {
             const options = await generateAuthenticationOptions(username);

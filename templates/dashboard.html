@@ -8,6 +8,20 @@
         </div>
         <a href="{{ url_for('add_equipment') }}" class="btn btn-accent">Give on Rent +</a>
     </div>
+
+    {% if not biometric_enabled %}
+    <!-- Biometric Security Card -->
+    <div class="glass-panel" style="margin-bottom: 30px; border-left: 5px solid #00ff88; background: rgba(0, 255, 136, 0.05); display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="font-size: 2.5rem; color: #00ff88;">🔒</div>
+            <div>
+                <h4 style="margin: 0; color: #00ff88;">Secure Your Account</h4>
+                <p style="margin: 5px 0 0; opacity: 0.8;">Enable Fingerprint Authentication for secure payments and faster bookings.</p>
+            </div>
+        </div>
+        <button id="enableBioBtn" class="cyber-btn" style="padding: 10px 25px; min-width: 180px;">Enable Fingerprint</button>
+    </div>
+    {% endif %}
     
     {% if reminders %}
     <div style="margin-bottom: 30px;">
@@ -193,6 +207,21 @@
             </div>
         </div>
     </div>
+
+    <!-- Biometric Enrollment Modal -->
+    <div id="bioModal" class="bio-modal">
+        <div class="bio-modal-content">
+            <div class="pulse"></div>
+            <div class="scanner-container">
+                <div class="scanner-line"></div>
+                <i class="fas fa-fingerprint fingerprint-icon"></i>
+            </div>
+            <h3 id="bioTitle">Register Fingerprint</h3>
+            <p id="bioDesc">Please verify your identity to enable biometric security.</p>
+            <div id="bioStatus" class="bio-status">AWAITING SCAN...</div>
+            <button type="button" id="cancelBio" class="cyber-btn">Cancel</button>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -353,6 +382,53 @@
         });
         btn.addEventListener('mouseup', () => {
             btn.style.transform = 'scale(1.05) translateY(-2px)';
+        });
+    });
+</script>
+<script src="{{ url_for('static', filename='js/biometric.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const enableBioBtn = document.getElementById('enableBioBtn');
+        const bioModal = document.getElementById('bioModal');
+        const bioStatus = document.getElementById('bioStatus');
+        const cancelBio = document.getElementById('cancelBio');
+
+        if (enableBioBtn) {
+            enableBioBtn.addEventListener('click', async () => {
+                bioModal.style.display = 'flex';
+                bioStatus.textContent = 'Touch fingerprint sensor';
+                bioStatus.className = 'bio-status';
+
+                try {
+                    const username = "{{ session['username'] }}";
+                    const result = await BioAuth.enroll(username);
+                    
+                    if (result.success) {
+                        bioStatus.textContent = 'Verification successful';
+                        bioStatus.className = 'bio-status bio-success-text';
+                        
+                        setTimeout(() => {
+                            bioStatus.textContent = 'Fingerprint setup complete';
+                            setTimeout(() => {
+                                location.reload();
+                            }, 1000);
+                        }, 1000);
+                    } else {
+                        throw new Error(result.error || 'Setup failed');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    bioStatus.textContent = 'SETUP FAILED';
+                    bioStatus.className = 'bio-status bio-error-text';
+                    setTimeout(() => {
+                        bioModal.style.display = 'none';
+                    }, 2000);
+                }
+            });
+        }
+
+        cancelBio.addEventListener('click', () => {
+            bioModal.style.display = 'none';
         });
     });
 </script>

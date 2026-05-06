@@ -282,6 +282,42 @@ def bio_verify_registration():
         return json.dumps({"error": str(e)}), 400
 
 
+@app.route('/api/bio/enroll', methods=['POST'])
+def bio_enroll():
+    if 'user_id' not in session:
+        return json.dumps({"error": "Login required"}), 401
+        
+    data = request.json
+    challenge = session.get('bio_reg_challenge')
+    
+    if not challenge:
+        return json.dumps({"error": "No challenge found in session"}), 400
+        
+    try:
+        verification = verify_registration_response(
+            credential=data,
+            expected_challenge=base64url_to_bytes(challenge),
+            expected_rp_id=request.host.split(':')[0],
+            expected_origin=f"{request.scheme}://{request.host}",
+            require_user_verification=True
+        )
+        
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(
+            'UPDATE users SET biometric_enabled = TRUE, biometric_credential_id = %s, biometric_public_key = %s WHERE id = %s',
+            (bytes_to_base64url(verification.credential_id), bytes_to_base64url(verification.credential_public_key), session['user_id'])
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return json.dumps({"success": True})
+    except Exception as e:
+        print(f"BIO ENROLL ERROR: {e}")
+        return json.dumps({"error": str(e)}), 400
+
+
 @app.route('/api/bio/authenticate-options', methods=['POST'])
 def bio_authenticate_options():
     username = request.json.get('username')
@@ -405,6 +441,11 @@ def dashboard():
     conn = get_db()
     cur = get_cursor(conn)
 
+    # User info
+    cur.execute('SELECT biometric_enabled FROM users WHERE id = %s', (session['user_id'],))
+    user_row = cur.fetchone()
+    biometric_enabled = user_row['biometric_enabled'] if user_row else False
+
     # Recent bookings
     cur.execute('''SELECT b.id, e.id as equipment_id, e.name, b.date, b.status, e.price, e.image, b.end_date, b.damage_fee_paid, e.damage_charge
         FROM bookings b JOIN equipment e ON b.equipment_id = e.id
@@ -465,6 +506,7 @@ def dashboard():
                            trending_cat=trending_cat,
                            recommended_eq=recommended_eq,
                            reminders=reminders,
+                           biometric_enabled=biometric_enabled,
                            full_name=session.get('full_name', 'User'))
 
 
@@ -642,6 +684,15 @@ def payment():
 
     conn = get_db()
     cur = get_cursor(conn)
+
+    # Check Biometric
+    cur.execute('SELECT biometric_enabled FROM users WHERE id = %s', (session['user_id'],))
+    user_row = cur.fetchone()
+    if not user_row or not user_row['biometric_enabled']:
+        flash('Please enable Fingerprint Authentication in your dashboard before making payments.', 'info')
+        cur.close()
+        conn.close()
+        return redirect(url_for('dashboard'))
 
     cur.execute('SELECT * FROM equipment WHERE id = %s', (eq_id,))
     eq = cur.fetchone()
