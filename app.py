@@ -25,7 +25,10 @@ from webauthn.helpers.structs import (
 )
 from webauthn.helpers import bytes_to_base64url, base64url_to_bytes
 
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = 'agrirent_secret_key'
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -275,7 +278,7 @@ def bio_verify_registration():
             credential=data,
             expected_challenge=base64url_to_bytes(challenge),
             expected_rp_id=request.host.split(':')[0].replace("www.", ""),
-            expected_origin=f"https://{request.host.split(':')[0]}",
+            expected_origin=f"{request.scheme}://{request.host.split(':')[0]}",
             require_user_verification=True
         )
         
@@ -306,7 +309,7 @@ def bio_enroll():
             credential=data,
             expected_challenge=base64url_to_bytes(challenge),
             expected_rp_id=request.host.split(':')[0].replace("www.", ""),
-            expected_origin=f"https://{request.host.split(':')[0]}",
+            expected_origin=f"{request.scheme}://{request.host.split(':')[0]}",
             require_user_verification=True
         )
         
@@ -381,7 +384,7 @@ def bio_verify_authentication():
             credential=data,
             expected_challenge=base64url_to_bytes(challenge),
             expected_rp_id=request.host.split(':')[0].replace("www.", ""),
-            expected_origin=f"https://{request.host.split(':')[0]}",
+            expected_origin=f"{request.scheme}://{request.host.split(':')[0]}",
             credential_public_key=base64url_to_bytes(user['biometric_public_key']),
             credential_current_sign_count=user['biometric_sign_count'],
             require_user_verification=True

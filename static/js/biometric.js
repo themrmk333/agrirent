@@ -149,13 +149,18 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("Register form detected");
         
         registerForm.addEventListener("submit", async function(event) {
+            // 1. Check form validity first
+            if (!registerForm.checkValidity()) {
+                registerForm.reportValidity();
+                return;
+            }
+
             // If we already have the biometric data, let the form submit normally
             if (document.getElementById('credential_id').value && document.getElementById('public_key').value) {
                 return;
             }
 
             event.preventDefault(); // STRICTLY PREVENT NORMAL FORM SUBMISSION
-            alert("Fingerprint process started");
             console.log("Biometric Started for Registration");
 
             if (!window.PublicKeyCredential) {

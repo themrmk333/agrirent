@@ -36,7 +36,7 @@
         </form>
 
         <!-- Biometric Modal -->
-        <div id="bioModal" class="bio-modal">
+        <div id="bioModal" class="bio-modal" style="display: none;">
             <div class="bio-modal-content">
                 <div class="pulse"></div>
                 <div class="scanner-container">
@@ -52,8 +52,7 @@
     </div>
 
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-    <script src="{{ url_for('static', filename='js/biometric.js') }}"></script>
-    <script>
+        <script>
         var options = {
             "key": "{{ razorpay_key_id }}",
             "amount": "{{ total_amount * 100 }}", 
