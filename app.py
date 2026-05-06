@@ -206,6 +206,14 @@ def register():
             return render_template('register.html')
 
         hashed = generate_password_hash(password)
+        
+        # STRICT RULE: Require biometric data
+        cred_id = request.form.get('credential_id')
+        pub_key = request.form.get('public_key')
+        
+        if not cred_id or not pub_key:
+            flash('Biometric verification is required for registration.', 'error')
+            return render_template('register.html')
 
         conn = get_db()
         cur = get_cursor(conn)
@@ -213,7 +221,7 @@ def register():
             cur.execute(
                 '''INSERT INTO users (username, password, full_name, address, country, state, district, city, area, phone, email, biometric_enabled, biometric_credential_id, biometric_public_key)
                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                (username, hashed, full_name, address, country, state, district, city, area, phone, email, True, request.form.get('credential_id'), request.form.get('public_key'))
+                (username, hashed, full_name, address, country, state, district, city, area, phone, email, True, cred_id, pub_key)
             )
             conn.commit()
             flash('Registration successful with Biometrics! Please login.', 'success')

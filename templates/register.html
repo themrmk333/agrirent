@@ -88,7 +88,6 @@
         <script>
             document.addEventListener('DOMContentLoaded', () => {
                 const regForm = document.querySelector('form');
-                const regBtn = document.getElementById('registerBtn');
                 const bioModal = document.getElementById('bioModal');
                 const bioStatus = document.getElementById('bioStatus');
                 const credentialIdInput = document.getElementById('credential_id');
@@ -96,36 +95,59 @@
                 const cancelBio = document.getElementById('cancelBio');
 
                 regForm.addEventListener('submit', async (e) => {
-                    if (credentialIdInput.value) return; // Already verified
+                    // If we already have the biometric data, let the form submit normally
+                    if (credentialIdInput.value && publicKeyInput.value) {
+                        return;
+                    }
 
+                    // Prevent normal submission to trigger biometric first
                     e.preventDefault();
+
+                    // Check for WebAuthn support
+                    if (!window.PublicKeyCredential) {
+                        alert("Your browser does not support biometric authentication. Please use a modern browser on a secure (HTTPS) connection.");
+                        return;
+                    }
+
                     const username = document.getElementById('username').value;
+                    if (!username) {
+                        alert("Please enter a username first.");
+                        return;
+                    }
                     
                     bioModal.style.display = 'flex';
-                    bioStatus.textContent = 'AWAITING SCAN...';
+                    bioStatus.textContent = 'Touch fingerprint sensor to complete registration';
                     bioStatus.className = 'bio-status';
 
                     try {
+                        console.log("Starting Biometric Registration for:", username);
                         const result = await BioAuth.register(username);
-                        if (result.success) {
-                            bioStatus.textContent = 'FINGERPRINT REGISTERED';
+                        
+                        if (result && result.success) {
+                            bioStatus.textContent = 'Verification successful';
                             bioStatus.className = 'bio-status bio-success-text';
+                            
+                            // Save the biometric credentials
                             credentialIdInput.value = result.credential_id;
                             publicKeyInput.value = result.public_key;
                             
+                            // Finalize registration
                             setTimeout(() => {
-                                regForm.submit();
+                                bioModal.style.display = 'none';
+                                regForm.submit(); // This submits the form without triggering this event again
                             }, 1000);
                         } else {
-                            throw new Error(result.error || 'Verification failed');
+                            throw new Error(result ? result.error : 'Verification failed');
                         }
                     } catch (err) {
-                        console.error(err);
-                        bioStatus.textContent = 'VERIFICATION FAILED';
+                        console.error("Registration Biometric Error:", err);
+                        bioStatus.textContent = 'Fingerprint Verification Failed';
                         bioStatus.className = 'bio-status bio-error-text';
+                        
+                        // Keep registration blocked
                         setTimeout(() => {
                             bioModal.style.display = 'none';
-                        }, 2000);
+                        }, 2500);
                     }
                 });
 
