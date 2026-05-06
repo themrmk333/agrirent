@@ -71,6 +71,29 @@
                 <input type="password" id="password" name="password" class="form-control" placeholder="Enter password" required>
             </div>
             <button type="submit" class="btn btn-pop btn-block" style="margin-top: 10px;">Login as User</button>
+            
+            <div style="text-align: center; margin: 15px 0;">
+                <span style="opacity: 0.5;">— OR —</span>
+            </div>
+            
+            <button type="button" id="bioLoginBtn" class="cyber-btn" style="width: 100%; border-radius: 25px; padding: 12px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <i class="fas fa-fingerprint"></i> Login with Fingerprint
+            </button>
+
+            <!-- Biometric Modal -->
+            <div id="bioModal" class="bio-modal">
+                <div class="bio-modal-content">
+                    <div class="pulse"></div>
+                    <div class="scanner-container">
+                        <div class="scanner-line"></div>
+                        <i class="fas fa-fingerprint fingerprint-icon"></i>
+                    </div>
+                    <h3 id="bioTitle">Biometric Login</h3>
+                    <p id="bioDesc">Please verify your fingerprint to continue.</p>
+                    <div id="bioStatus" class="bio-status">AWAITING SCAN...</div>
+                    <button type="button" id="cancelBio" class="cyber-btn">Cancel</button>
+                </div>
+            </div>
         </form>
 
         <form action="{{ url_for('login') }}" method="POST" id="adminForm" class="login-section">
@@ -92,7 +115,68 @@
     </div>
 </div>
 
+<script src="{{ url_for('static', filename='js/biometric.js') }}"></script>
 <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const bioLoginBtn = document.getElementById('bioLoginBtn');
+        const bioModal = document.getElementById('bioModal');
+        const bioStatus = document.getElementById('bioStatus');
+        const cancelBio = document.getElementById('cancelBio');
+
+        if (bioLoginBtn) {
+            bioLoginBtn.addEventListener('click', async () => {
+                const username = document.getElementById('username').value;
+                if (!username) {
+                    alert("Please enter your username first to login with fingerprint.");
+                    return;
+                }
+
+                bioModal.style.display = 'flex';
+                bioStatus.textContent = 'AWAITING SCAN...';
+                bioStatus.className = 'bio-status';
+
+                try {
+                    const result = await BioAuth.authenticate(username);
+                    if (result.success) {
+                        bioStatus.textContent = 'VERIFICATION SUCCESSFUL';
+                        bioStatus.className = 'bio-status bio-success-text';
+                        
+                        // Notify server to set session
+                        const loginRes = await fetch('/bio_login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username })
+                        });
+                        const loginData = await loginRes.json();
+                        
+                        if (loginData.success) {
+                            setTimeout(() => {
+                                window.location.href = "{{ url_for('dashboard') }}";
+                            }, 1000);
+                        } else {
+                            throw new Error(loginData.error);
+                        }
+                    } else {
+                        throw new Error(result.error || 'Verification failed');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    bioStatus.textContent = 'VERIFICATION FAILED';
+                    bioStatus.className = 'bio-status bio-error-text';
+                    setTimeout(() => {
+                        bioModal.style.display = 'none';
+                    }, 2000);
+                }
+            });
+        }
+
+        if (cancelBio) {
+            cancelBio.addEventListener('click', () => {
+                bioModal.style.display = 'none';
+            });
+        }
+    });
+
     function switchLogin(type) {
         const userForm = document.getElementById('userForm');
         const adminForm = document.getElementById('adminForm');

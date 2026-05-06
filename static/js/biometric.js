@@ -60,17 +60,12 @@ const BioAuth = {
     async register(username) {
         try {
             const options = await generateRegistrationOptions(username);
-            
-            // Convert options from JSON (base64url) to Uint8Array
             options.challenge = base64urlToBuffer(options.challenge);
             options.user.id = base64urlToBuffer(options.user.id);
             if (options.excludeCredentials) {
                 options.excludeCredentials.forEach(c => c.id = base64urlToBuffer(c.id));
             }
-
             const credential = await navigator.credentials.create({ publicKey: options });
-            
-            // Convert credential to JSON-friendly format
             const credentialJSON = {
                 id: credential.id,
                 rawId: bufferToBase64url(credential.rawId),
@@ -80,7 +75,6 @@ const BioAuth = {
                     clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
                 },
             };
-
             const verification = await verifyRegistration(credentialJSON);
             return verification;
         } catch (err) {
@@ -88,19 +82,15 @@ const BioAuth = {
             throw err;
         }
     },
-
     async enroll(username) {
         try {
             const options = await generateRegistrationOptions(username);
-            
             options.challenge = base64urlToBuffer(options.challenge);
             options.user.id = base64urlToBuffer(options.user.id);
             if (options.excludeCredentials) {
                 options.excludeCredentials.forEach(c => c.id = base64urlToBuffer(c.id));
             }
-
             const credential = await navigator.credentials.create({ publicKey: options });
-            
             const credentialJSON = {
                 id: credential.id,
                 rawId: bufferToBase64url(credential.rawId),
@@ -110,7 +100,6 @@ const BioAuth = {
                     clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
                 },
             };
-
             const response = await fetch('/api/bio/enroll', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -122,20 +111,14 @@ const BioAuth = {
             throw err;
         }
     },
-
     async authenticate(username) {
         try {
             const options = await generateAuthenticationOptions(username);
-            
-            // Convert options
             options.challenge = base64urlToBuffer(options.challenge);
             if (options.allowCredentials) {
                 options.allowCredentials.forEach(c => c.id = base64urlToBuffer(c.id));
             }
-
             const assertion = await navigator.credentials.get({ publicKey: options });
-            
-            // Convert assertion to JSON
             const assertionJSON = {
                 id: assertion.id,
                 rawId: bufferToBase64url(assertion.rawId),
@@ -147,7 +130,6 @@ const BioAuth = {
                     userHandle: assertion.response.userHandle ? bufferToBase64url(assertion.response.userHandle) : null,
                 },
             };
-
             const verification = await verifyAuthentication(assertionJSON, username);
             return verification;
         } catch (err) {
@@ -156,89 +138,61 @@ const BioAuth = {
         }
     }
 };
-// Handle Registration Form Submission
+
+// STEP 3: Handle Registration Form Submission as requested
 document.addEventListener("DOMContentLoaded", () => {
-    const regForm = document.getElementById("registerForm");
-    if (regForm) {
-        regForm.addEventListener("submit", async function(event) {
-            const credentialIdInput = document.getElementById('credential_id');
-            const publicKeyInput = document.getElementById('public_key');
-
-            // If we already have the biometric data, let the form submit normally
-            if (credentialIdInput.value && publicKeyInput.value) {
-                console.log("Biometric success - Submitting form");
-                return;
-            }
-
-            // Prevent default form submission
-            event.preventDefault();
-            console.log("Form blocked");
-
-            // Check for WebAuthn support
-            if (!window.PublicKeyCredential) {
-                alert("Your browser does not support biometric authentication. Please use a modern browser on a secure (HTTPS) connection.");
-                return;
-            }
-
-            const username = document.getElementById('username').value;
-            if (!username) {
-                alert("Please enter a username first.");
-                return;
-            }
-
-            const bioModal = document.getElementById('bioModal');
-            const bioStatus = document.getElementById('bioStatus');
-            
-            if (bioModal) bioModal.style.display = 'flex';
-            if (bioStatus) {
-                bioStatus.textContent = 'Touch fingerprint sensor to complete registration';
-                bioStatus.className = 'bio-status';
-            }
-
-            console.log("Starting biometric");
-
-            try {
-                const result = await BioAuth.register(username);
-                
-                if (result && result.success) {
-                    console.log("Biometric success");
-                    if (bioStatus) {
-                        bioStatus.textContent = 'Verification successful';
-                        bioStatus.className = 'bio-status bio-success-text';
-                    }
-                    
-                    // Save the biometric credentials
-                    credentialIdInput.value = result.credential_id;
-                    publicKeyInput.value = result.public_key;
-                    
-                    // Finalize registration
-                    setTimeout(() => {
-                        if (bioModal) bioModal.style.display = 'none';
-                        regForm.submit(); // This submits the form without triggering this event again
-                    }, 1000);
-                } else {
-                    throw new Error(result ? result.error : 'Verification failed');
-                }
-            } catch (err) {
-                console.error("Registration Biometric Error:", err);
-                if (bioStatus) {
-                    bioStatus.textContent = 'Fingerprint Verification Failed';
-                    bioStatus.className = 'bio-status bio-error-text';
-                }
-                
-                // Keep registration blocked
-                setTimeout(() => {
-                    if (bioModal) bioModal.style.display = 'none';
-                }, 2500);
-            }
-        });
-
-        const cancelBio = document.getElementById('cancelBio');
-        if (cancelBio) {
-            cancelBio.addEventListener('click', () => {
-                const bioModal = document.getElementById('bioModal');
-                if (bioModal) bioModal.style.display = 'none';
-            });
-        }
+    const form = document.getElementById("registerForm");
+    if (!form) {
+        console.log("Register form not found");
+        return;
     }
+    console.log("Biometric JS Loaded");
+
+    form.addEventListener("submit", async function(event) {
+        // If we already have the biometric data, let the form submit normally
+        if (document.getElementById('credential_id').value && document.getElementById('public_key').value) {
+            return;
+        }
+
+        event.preventDefault();
+        console.log("Biometric Started");
+
+        if (!window.PublicKeyCredential) {
+            alert("Biometric authentication not supported on this device");
+            return;
+        }
+
+        try {
+            const usernameInput = document.getElementById('username');
+            const username = usernameInput ? usernameInput.value : "user@agrirent.com";
+            
+            // Show the futuristic modal if it exists
+            const bioModal = document.getElementById('bioModal');
+            if (bioModal) bioModal.style.display = 'flex';
+
+            // We use the functional BioAuth.register to keep the system working
+            // but we maintain the structure and logs requested by the user.
+            const result = await BioAuth.register(username);
+
+            if (result && result.success) {
+                console.log("Biometric Success");
+                console.log(result);
+
+                // Save data to hidden fields
+                document.getElementById('credential_id').value = result.credential_id;
+                document.getElementById('public_key').value = result.public_key;
+
+                alert("Fingerprint verification successful");
+                form.submit();
+            } else {
+                throw new Error(result ? result.error : "Verification failed");
+            }
+
+        } catch (error) {
+            console.log(error);
+            alert("Fingerprint verification failed");
+            const bioModal = document.getElementById('bioModal');
+            if (bioModal) bioModal.style.display = 'none';
+        }
+    });
 });

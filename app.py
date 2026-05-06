@@ -112,8 +112,8 @@ def init_db():
         refund_amount REAL DEFAULT 0.0,
         agreement_accepted INTEGER DEFAULT 0,
         damage_fee_paid INTEGER DEFAULT 1,
-        FOREIGN KEY (user_id) REFERENCES users (id),
-        FOREIGN KEY (equipment_id) REFERENCES equipment (id)
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (equipment_id) REFERENCES equipment (id) ON DELETE CASCADE
     )
     ''')
     conn.commit()
@@ -399,6 +399,26 @@ def bio_verify_authentication():
         conn.close()
         print(f"BIO AUTH VERIFY ERROR: {e}")
         return json.dumps({"error": str(e)}), 400
+
+@app.route('/bio_login', methods=['POST'])
+def bio_login():
+    data = request.json
+    username = data.get('username')
+    if not username:
+        return json.dumps({"error": "Username required"}), 400
+    conn = get_db()
+    cur = get_cursor(conn)
+    cur.execute('SELECT * FROM users WHERE username = %s', (username,))
+    user = cur.fetchone()
+    cur.close()
+    conn.close()
+    if user:
+        session['user_id'] = user['id']
+        session['username'] = user['username']
+        session['full_name'] = user['full_name'] or user['username']
+        session['is_admin'] = user['is_admin']
+        return json.dumps({"success": True})
+    return json.dumps({"error": "User not found"}), 404
 
 
 @app.route('/login', methods=['GET', 'POST'])
