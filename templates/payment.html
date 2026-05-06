@@ -34,9 +34,25 @@
             <input type="hidden" name="razorpay_order_id" id="razorpay_order_id">
             <input type="hidden" name="razorpay_signature" id="razorpay_signature">
         </form>
+
+        <!-- Biometric Modal -->
+        <div id="bioModal" class="bio-modal">
+            <div class="bio-modal-content">
+                <div class="pulse"></div>
+                <div class="scanner-container">
+                    <div class="scanner-line"></div>
+                    <i class="fas fa-fingerprint fingerprint-icon"></i>
+                </div>
+                <h3 id="bioTitle">Verify Fingerprint</h3>
+                <p id="bioDesc">Please scan your registered biometric to authorize this payment.</p>
+                <div id="bioStatus" class="bio-status">AWAITING SCAN...</div>
+                <button type="button" id="cancelBio" class="cyber-btn">Cancel</button>
+            </div>
+        </div>
     </div>
 
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script src="{{ url_for('static', filename='js/biometric.js') }}"></script>
     <script>
         var options = {
             "key": "{{ razorpay_key_id }}",
@@ -60,14 +76,59 @@
             }
         };
         var rzp1 = new Razorpay(options);
-        document.getElementById('rzp-button1').onclick = function(e){
+        
+        const bioModal = document.getElementById('bioModal');
+        const bioStatus = document.getElementById('bioStatus');
+        const cancelBio = document.getElementById('cancelBio');
+        let bioVerified = false;
+
+        document.getElementById('rzp-button1').onclick = async function(e){
+            e.preventDefault();
+            
             if (!document.getElementById('agreement').checked) {
                 alert("Please accept the agreement to continue.");
                 return;
             }
-            rzp1.open();
-            e.preventDefault();
+
+            if (bioVerified) {
+                rzp1.open();
+                return;
+            }
+
+            // Trigger Biometric Verification
+            bioModal.style.display = 'flex';
+            bioStatus.textContent = 'AWAITING SCAN...';
+            bioStatus.className = 'bio-status';
+
+            try {
+                const username = "{{ session['username'] }}";
+                const result = await BioAuth.authenticate(username);
+                
+                if (result.success) {
+                    bioStatus.textContent = 'VERIFICATION SUCCESSFUL';
+                    bioStatus.className = 'bio-status bio-success-text';
+                    bioVerified = true;
+                    
+                    setTimeout(() => {
+                        bioModal.style.display = 'none';
+                        rzp1.open();
+                    }, 1000);
+                } else {
+                    throw new Error(result.error || 'Verification failed');
+                }
+            } catch (err) {
+                console.error(err);
+                bioStatus.textContent = 'VERIFICATION FAILED';
+                bioStatus.className = 'bio-status bio-error-text';
+                setTimeout(() => {
+                    bioModal.style.display = 'none';
+                }, 2000);
+            }
         }
+
+        cancelBio.addEventListener('click', () => {
+            bioModal.style.display = 'none';
+        });
     </script>
 </div>
 {% endblock %}

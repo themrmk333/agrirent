@@ -14,6 +14,10 @@
                     <input type="text" id="full_name" name="full_name" class="form-control" placeholder="e.g. Mahesh Kumar" required>
                 </div>
                 <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" class="form-control" placeholder="e.g. mahesh@example.com" required>
+                </div>
+                <div class="form-group">
                     <label for="phone">Contact Number</label>
                     <input type="tel" id="phone" name="phone" class="form-control" pattern="[0-9]{10}" placeholder="10-digit mobile number" required title="Please enter a 10-digit phone number">
                 </div>
@@ -59,8 +63,77 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-accent btn-block" style="margin-top: 10px; font-size: 1.1rem; padding: 12px;">Complete Registration</button>
+            <input type="hidden" name="credential_id" id="credential_id">
+            <input type="hidden" name="public_key" id="public_key">
+
+            <button type="submit" id="registerBtn" class="btn btn-accent btn-block" style="margin-top: 10px; font-size: 1.1rem; padding: 12px;">Complete Registration</button>
         </form>
+
+        <!-- Biometric Modal -->
+        <div id="bioModal" class="bio-modal">
+            <div class="bio-modal-content">
+                <div class="pulse"></div>
+                <div class="scanner-container">
+                    <div class="scanner-line"></div>
+                    <i class="fas fa-fingerprint fingerprint-icon"></i>
+                </div>
+                <h3 id="bioTitle">Register Your Fingerprint</h3>
+                <p id="bioDesc">Please verify your device biometric to secure your account.</p>
+                <div id="bioStatus" class="bio-status">AWAITING SCAN...</div>
+                <button type="button" id="cancelBio" class="cyber-btn">Cancel</button>
+            </div>
+        </div>
+
+        <script src="{{ url_for('static', filename='js/biometric.js') }}"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const regForm = document.querySelector('form');
+                const regBtn = document.getElementById('registerBtn');
+                const bioModal = document.getElementById('bioModal');
+                const bioStatus = document.getElementById('bioStatus');
+                const credentialIdInput = document.getElementById('credential_id');
+                const publicKeyInput = document.getElementById('public_key');
+                const cancelBio = document.getElementById('cancelBio');
+
+                regForm.addEventListener('submit', async (e) => {
+                    if (credentialIdInput.value) return; // Already verified
+
+                    e.preventDefault();
+                    const username = document.getElementById('username').value;
+                    
+                    bioModal.style.display = 'flex';
+                    bioStatus.textContent = 'AWAITING SCAN...';
+                    bioStatus.className = 'bio-status';
+
+                    try {
+                        const result = await BioAuth.register(username);
+                        if (result.success) {
+                            bioStatus.textContent = 'FINGERPRINT REGISTERED';
+                            bioStatus.className = 'bio-status bio-success-text';
+                            credentialIdInput.value = result.credential_id;
+                            publicKeyInput.value = result.public_key;
+                            
+                            setTimeout(() => {
+                                regForm.submit();
+                            }, 1000);
+                        } else {
+                            throw new Error(result.error || 'Verification failed');
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        bioStatus.textContent = 'VERIFICATION FAILED';
+                        bioStatus.className = 'bio-status bio-error-text';
+                        setTimeout(() => {
+                            bioModal.style.display = 'none';
+                        }, 2000);
+                    }
+                });
+
+                cancelBio.addEventListener('click', () => {
+                    bioModal.style.display = 'none';
+                });
+            });
+        </script>
         <div style="text-align: center; margin-top: 20px;">
             <p>Already have an account? <a href="{{ url_for('login') }}" style="color: var(--primary-light);">Login</a></p>
         </div>

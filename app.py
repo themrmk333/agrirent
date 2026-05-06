@@ -7,6 +7,23 @@ import random
 import time
 import razorpay
 from werkzeug.security import generate_password_hash, check_password_hash
+import json
+import base64
+from webauthn import (
+    generate_registration_options,
+    verify_registration_response,
+    generate_authentication_options,
+    verify_authentication_response,
+    options_to_json,
+)
+from webauthn.helpers.structs import (
+    AttestationConveyancePreference,
+    AuthenticatorSelectionCriteria,
+    UserVerificationRequirement,
+    AuthenticatorAttachment,
+    ResidentKeyRequirement,
+)
+from webauthn.helpers import bytes_to_base64url, base64url_to_bytes
 
 app = Flask(__name__)
 app.secret_key = 'agrirent_secret_key'
@@ -52,8 +69,20 @@ def init_db():
         district TEXT,
         city TEXT,
         area TEXT,
-        phone TEXT
+        phone TEXT,
+        email TEXT,
+        biometric_enabled BOOLEAN DEFAULT FALSE,
+        biometric_credential_id TEXT,
+        biometric_public_key TEXT,
+        biometric_sign_count INTEGER DEFAULT 0
     )
+    ''')
+    cur.execute('''
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS biometric_enabled BOOLEAN DEFAULT FALSE;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS biometric_credential_id TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS biometric_public_key TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS biometric_sign_count INTEGER DEFAULT 0;
     ''')
     cur.execute('''
     CREATE TABLE IF NOT EXISTS equipment (
@@ -170,6 +199,7 @@ def register():
         city = request.form['city']
         area = request.form['area']
         phone = request.form['phone']
+        email = request.form.get('email', '')
 
         if len(phone) != 10:
             flash('Phone number must be exactly 10 digits.', 'error')
@@ -181,15 +211,16 @@ def register():
         cur = get_cursor(conn)
         try:
             cur.execute(
-                '''INSERT INTO users (username, password, full_name, address, country, state, district, city, area, phone)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                (username, hashed, full_name, address, country, state, district, city, area, phone)
+                '''INSERT INTO users (username, password, full_name, address, country, state, district, city, area, phone, email, biometric_enabled, biometric_credential_id, biometric_public_key)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
+                (username, hashed, full_name, address, country, state, district, city, area, phone, email, True, request.form.get('credential_id'), request.form.get('public_key'))
             )
             conn.commit()
-            flash('Registration successful. Please login.', 'success')
+            flash('Registration successful with Biometrics! Please login.', 'success')
             return redirect(url_for('login'))
         except Exception as e:
             conn.rollback()
+            print(f"REGISTRATION ERROR: {e}")
             err_str = str(e).lower() + repr(e).lower()
             if 'unique' in err_str or 'violation' in err_str:
                 flash('Username already exists.', 'error')
@@ -199,6 +230,131 @@ def register():
             cur.close()
             conn.close()
     return render_template('register.html')
+
+
+@app.route('/api/bio/register-options', methods=['POST'])
+def bio_register_options():
+    data = request.json
+    username = data.get('username')
+    
+    options = generate_registration_options(
+        rp_id=request.host.split(':')[0],
+        rp_name="AgriRent",
+        user_id=os.urandom(16),
+        user_name=username,
+        attestation=AttestationConveyancePreference.NONE,
+        authenticator_selection=AuthenticatorSelectionCriteria(
+            authenticator_attachment=AuthenticatorAttachment.PLATFORM,
+            resident_key=ResidentKeyRequirement.PREFERRED,
+            user_verification=UserVerificationRequirement.REQUIRED
+        ),
+    )
+    
+    session['bio_reg_challenge'] = bytes_to_base64url(options.challenge)
+    return options_to_json(options)
+
+
+@app.route('/api/bio/verify-registration', methods=['POST'])
+def bio_verify_registration():
+    data = request.json
+    challenge = session.get('bio_reg_challenge')
+    
+    if not challenge:
+        return json.dumps({"error": "No challenge found in session"}), 400
+    
+    try:
+        verification = verify_registration_response(
+            credential=data,
+            expected_challenge=base64url_to_bytes(challenge),
+            expected_rp_id=request.host.split(':')[0],
+            expected_origin=f"{request.scheme}://{request.host}",
+            require_user_verification=True
+        )
+        
+        # Return the credential ID and public key to be saved by the main registration form
+        return json.dumps({
+            "success": True,
+            "credential_id": bytes_to_base64url(verification.credential_id),
+            "public_key": bytes_to_base64url(verification.credential_public_key)
+        })
+    except Exception as e:
+        print(f"BIO REG VERIFY ERROR: {e}")
+        return json.dumps({"error": str(e)}), 400
+
+
+@app.route('/api/bio/authenticate-options', methods=['POST'])
+def bio_authenticate_options():
+    username = request.json.get('username')
+    if not username and 'username' in session:
+        username = session['username']
+        
+    conn = get_db()
+    cur = get_cursor(conn)
+    cur.execute('SELECT biometric_credential_id FROM users WHERE username = %s', (username,))
+    user = cur.fetchone()
+    cur.close()
+    conn.close()
+    
+    if not user or not user['biometric_credential_id']:
+        return json.dumps({"error": "Biometric not enabled for this account"}), 404
+    
+    options = generate_authentication_options(
+        rp_id=request.host.split(':')[0],
+        allow_credentials=[{
+            "id": base64url_to_bytes(user['biometric_credential_id']),
+            "type": "public-key"
+        }],
+        user_verification=UserVerificationRequirement.REQUIRED
+    )
+    
+    session['bio_auth_challenge'] = bytes_to_base64url(options.challenge)
+    return options_to_json(options)
+
+
+@app.route('/api/bio/verify-authentication', methods=['POST'])
+def bio_verify_authentication():
+    data = request.json
+    challenge = session.get('bio_auth_challenge')
+    username = request.json.get('username')
+    if not username and 'username' in session:
+        username = session['username']
+        
+    if not challenge:
+        return json.dumps({"error": "No challenge found in session"}), 400
+        
+    conn = get_db()
+    cur = get_cursor(conn)
+    cur.execute('SELECT * FROM users WHERE username = %s', (username,))
+    user = cur.fetchone()
+    
+    if not user:
+        cur.close()
+        conn.close()
+        return json.dumps({"error": "User not found"}), 404
+        
+    try:
+        verification = verify_authentication_response(
+            credential=data,
+            expected_challenge=base64url_to_bytes(challenge),
+            expected_rp_id=request.host.split(':')[0],
+            expected_origin=f"{request.scheme}://{request.host}",
+            credential_public_key=base64url_to_bytes(user['biometric_public_key']),
+            credential_current_sign_count=user['biometric_sign_count'],
+            require_user_verification=True
+        )
+        
+        # Update sign count
+        cur.execute('UPDATE users SET biometric_sign_count = %s WHERE id = %s', (verification.new_sign_count, user['id']))
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return json.dumps({"success": True})
+    except Exception as e:
+        cur.close()
+        conn.close()
+        print(f"BIO AUTH VERIFY ERROR: {e}")
+        return json.dumps({"error": str(e)}), 400
 
 
 @app.route('/login', methods=['GET', 'POST'])
