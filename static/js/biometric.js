@@ -156,3 +156,89 @@ const BioAuth = {
         }
     }
 };
+// Handle Registration Form Submission
+document.addEventListener("DOMContentLoaded", () => {
+    const regForm = document.getElementById("registerForm");
+    if (regForm) {
+        regForm.addEventListener("submit", async function(event) {
+            const credentialIdInput = document.getElementById('credential_id');
+            const publicKeyInput = document.getElementById('public_key');
+
+            // If we already have the biometric data, let the form submit normally
+            if (credentialIdInput.value && publicKeyInput.value) {
+                console.log("Biometric success - Submitting form");
+                return;
+            }
+
+            // Prevent default form submission
+            event.preventDefault();
+            console.log("Form blocked");
+
+            // Check for WebAuthn support
+            if (!window.PublicKeyCredential) {
+                alert("Your browser does not support biometric authentication. Please use a modern browser on a secure (HTTPS) connection.");
+                return;
+            }
+
+            const username = document.getElementById('username').value;
+            if (!username) {
+                alert("Please enter a username first.");
+                return;
+            }
+
+            const bioModal = document.getElementById('bioModal');
+            const bioStatus = document.getElementById('bioStatus');
+            
+            if (bioModal) bioModal.style.display = 'flex';
+            if (bioStatus) {
+                bioStatus.textContent = 'Touch fingerprint sensor to complete registration';
+                bioStatus.className = 'bio-status';
+            }
+
+            console.log("Starting biometric");
+
+            try {
+                const result = await BioAuth.register(username);
+                
+                if (result && result.success) {
+                    console.log("Biometric success");
+                    if (bioStatus) {
+                        bioStatus.textContent = 'Verification successful';
+                        bioStatus.className = 'bio-status bio-success-text';
+                    }
+                    
+                    // Save the biometric credentials
+                    credentialIdInput.value = result.credential_id;
+                    publicKeyInput.value = result.public_key;
+                    
+                    // Finalize registration
+                    setTimeout(() => {
+                        if (bioModal) bioModal.style.display = 'none';
+                        regForm.submit(); // This submits the form without triggering this event again
+                    }, 1000);
+                } else {
+                    throw new Error(result ? result.error : 'Verification failed');
+                }
+            } catch (err) {
+                console.error("Registration Biometric Error:", err);
+                if (bioStatus) {
+                    bioStatus.textContent = 'Fingerprint Verification Failed';
+                    bioStatus.className = 'bio-status bio-error-text';
+                }
+                
+                // Keep registration blocked
+                setTimeout(() => {
+                    if (bioModal) bioModal.style.display = 'none';
+                }, 2500);
+            }
+        });
+
+        const cancelBio = document.getElementById('cancelBio');
+        if (cancelBio) {
+            cancelBio.addEventListener('click', () => {
+                const bioModal = document.getElementById('bioModal');
+                if (bioModal) bioModal.style.display = 'none';
+            });
+        }
+    }
+});

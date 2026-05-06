@@ -6,7 +6,7 @@
             <h2>Create Account</h2>
             <p>Join the AgriRent community</p>
         </div>
-        <form action="{{ url_for('register') }}" method="POST">
+        <form id="registerForm" action="{{ url_for('register') }}" method="POST">
             <h4 style="margin-bottom: 15px; border-bottom: 2px solid var(--accent-color); display: inline-block;">Personal Information</h4>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 24px;">
                 <div class="form-group">
@@ -85,77 +85,6 @@
         </div>
 
         <script src="{{ url_for('static', filename='js/biometric.js') }}"></script>
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                const regForm = document.querySelector('form');
-                const bioModal = document.getElementById('bioModal');
-                const bioStatus = document.getElementById('bioStatus');
-                const credentialIdInput = document.getElementById('credential_id');
-                const publicKeyInput = document.getElementById('public_key');
-                const cancelBio = document.getElementById('cancelBio');
-
-                regForm.addEventListener('submit', async (e) => {
-                    // If we already have the biometric data, let the form submit normally
-                    if (credentialIdInput.value && publicKeyInput.value) {
-                        return;
-                    }
-
-                    // Prevent normal submission to trigger biometric first
-                    e.preventDefault();
-
-                    // Check for WebAuthn support
-                    if (!window.PublicKeyCredential) {
-                        alert("Your browser does not support biometric authentication. Please use a modern browser on a secure (HTTPS) connection.");
-                        return;
-                    }
-
-                    const username = document.getElementById('username').value;
-                    if (!username) {
-                        alert("Please enter a username first.");
-                        return;
-                    }
-                    
-                    bioModal.style.display = 'flex';
-                    bioStatus.textContent = 'Touch fingerprint sensor to complete registration';
-                    bioStatus.className = 'bio-status';
-
-                    try {
-                        console.log("Starting Biometric Registration for:", username);
-                        const result = await BioAuth.register(username);
-                        
-                        if (result && result.success) {
-                            bioStatus.textContent = 'Verification successful';
-                            bioStatus.className = 'bio-status bio-success-text';
-                            
-                            // Save the biometric credentials
-                            credentialIdInput.value = result.credential_id;
-                            publicKeyInput.value = result.public_key;
-                            
-                            // Finalize registration
-                            setTimeout(() => {
-                                bioModal.style.display = 'none';
-                                regForm.submit(); // This submits the form without triggering this event again
-                            }, 1000);
-                        } else {
-                            throw new Error(result ? result.error : 'Verification failed');
-                        }
-                    } catch (err) {
-                        console.error("Registration Biometric Error:", err);
-                        bioStatus.textContent = 'Fingerprint Verification Failed';
-                        bioStatus.className = 'bio-status bio-error-text';
-                        
-                        // Keep registration blocked
-                        setTimeout(() => {
-                            bioModal.style.display = 'none';
-                        }, 2500);
-                    }
-                });
-
-                cancelBio.addEventListener('click', () => {
-                    bioModal.style.display = 'none';
-                });
-            });
-        </script>
         <div style="text-align: center; margin-top: 20px;">
             <p>Already have an account? <a href="{{ url_for('login') }}" style="color: var(--primary-light);">Login</a></p>
         </div>
