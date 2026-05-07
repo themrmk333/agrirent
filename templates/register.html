@@ -39,6 +39,26 @@
             </div>
 
             <h4 style="margin-bottom: 15px; border-bottom: 2px solid var(--accent-color); display: inline-block;">
+                Security PIN</h4>
+            <p style="font-size: 0.85rem; color: #4facfe; margin-bottom: 15px;">
+                🔐 Create a 6-digit transaction PIN for secure payments.
+            </p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                <div class="form-group">
+                    <label for="secure_pin">6-Digit PIN</label>
+                    <input type="password" id="secure_pin" name="secure_pin" class="form-control" 
+                        maxlength="6" minlength="6" pattern="[0-9]{6}" inputmode="numeric"
+                        placeholder="Enter 6-digit PIN" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirm_pin">Confirm PIN</label>
+                    <input type="password" id="confirm_pin" name="confirm_pin" class="form-control" 
+                        maxlength="6" minlength="6" pattern="[0-9]{6}" inputmode="numeric"
+                        placeholder="Confirm 6-digit PIN" required>
+                </div>
+            </div>
+
+            <h4 style="margin-bottom: 15px; border-bottom: 2px solid var(--accent-color); display: inline-block;">
                 Address Details</h4>
             <div class="form-group">
                 <label for="address">Address Line</label>
@@ -75,27 +95,9 @@
                 </div>
             </div>
 
-            <input type="hidden" name="credential_id" id="credential_id">
-            <input type="hidden" name="public_key" id="public_key">
-
             <button type="submit" id="registerBtn" class="btn btn-accent btn-block"
-                style="margin-top: 10px; font-size: 1.1rem; padding: 12px;">Complete Registration</button>
+                style="margin-top: 10px; font-size: 1.1rem; padding: 12px;">Create Account</button>
         </form>
-
-        <!-- Biometric Modal -->
-        <div id="bioModal" class="bio-modal" style="display: none;">
-            <div class="bio-modal-content">
-                <div class="pulse"></div>
-                <div class="scanner-container">
-                    <div class="scanner-line"></div>
-                    <i class="fas fa-fingerprint fingerprint-icon"></i>
-                </div>
-                <h3 id="bioTitle">Register Your Fingerprint</h3>
-                <p id="bioDesc">Please verify your device biometric to secure your account.</p>
-                <div id="bioStatus" class="bio-status">AWAITING SCAN...</div>
-                <button type="button" id="cancelBio" class="cyber-btn">Cancel</button>
-            </div>
-        </div>
 
         <div style="text-align: center; margin-top: 20px;">
             <p>Already have an account? <a href="{{ url_for('login') }}" style="color: var(--primary-light);">Login</a>

@@ -8,23 +8,6 @@ import time
 import razorpay
 from werkzeug.security import generate_password_hash, check_password_hash
 import json
-import base64
-from webauthn import (
-    generate_registration_options,
-    verify_registration_response,
-    generate_authentication_options,
-    verify_authentication_response,
-    options_to_json,
-)
-from webauthn.helpers.structs import (
-    AttestationConveyancePreference,
-    AuthenticatorSelectionCriteria,
-    UserVerificationRequirement,
-    AuthenticatorAttachment,
-    ResidentKeyRequirement,
-)
-from webauthn.helpers import bytes_to_base64url, base64url_to_bytes
-
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
@@ -74,18 +57,16 @@ def init_db():
         area TEXT,
         phone TEXT,
         email TEXT,
-        biometric_enabled BOOLEAN DEFAULT FALSE,
-        biometric_credential_id TEXT,
-        biometric_public_key TEXT,
-        biometric_sign_count INTEGER DEFAULT 0
+        secure_pin TEXT
     )
     ''')
     cur.execute('''
     ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS biometric_enabled BOOLEAN DEFAULT FALSE;
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS biometric_credential_id TEXT;
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS biometric_public_key TEXT;
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS biometric_sign_count INTEGER DEFAULT 0;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS secure_pin TEXT;
+    ALTER TABLE users DROP COLUMN IF EXISTS biometric_enabled;
+    ALTER TABLE users DROP COLUMN IF EXISTS biometric_credential_id;
+    ALTER TABLE users DROP COLUMN IF EXISTS biometric_public_key;
+    ALTER TABLE users DROP COLUMN IF EXISTS biometric_sign_count;
     ''')
     cur.execute('''
     CREATE TABLE IF NOT EXISTS equipment (
@@ -203,31 +184,34 @@ def register():
         area = request.form['area']
         phone = request.form['phone']
         email = request.form.get('email', '')
+        secure_pin = request.form.get('secure_pin')
+        confirm_pin = request.form.get('confirm_pin')
 
         if len(phone) != 10:
             flash('Phone number must be exactly 10 digits.', 'error')
             return render_template('register.html')
-
-        hashed = generate_password_hash(password)
-        
-        # STRICT RULE: Require biometric data
-        cred_id = request.form.get('credential_id')
-        pub_key = request.form.get('public_key')
-        
-        if not cred_id or not pub_key:
-            flash('Biometric verification is required for registration.', 'error')
+            
+        if not secure_pin or len(secure_pin) != 6 or not secure_pin.isdigit():
+            flash('Security PIN must be exactly 6 digits.', 'error')
+            return render_template('register.html')
+            
+        if secure_pin != confirm_pin:
+            flash('PINs do not match.', 'error')
             return render_template('register.html')
 
+        hashed = generate_password_hash(password)
+        hashed_pin = generate_password_hash(secure_pin)
+        
         conn = get_db()
         cur = get_cursor(conn)
         try:
             cur.execute(
-                '''INSERT INTO users (username, password, full_name, address, country, state, district, city, area, phone, email, biometric_enabled, biometric_credential_id, biometric_public_key)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                (username, hashed, full_name, address, country, state, district, city, area, phone, email, True, cred_id, pub_key)
+                '''INSERT INTO users (username, password, full_name, address, country, state, district, city, area, phone, email, secure_pin)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
+                (username, hashed, full_name, address, country, state, district, city, area, phone, email, hashed_pin)
             )
             conn.commit()
-            flash('Registration successful with Biometrics! Please login.', 'success')
+            flash('Registration successful! Please login.', 'success')
             return redirect(url_for('login'))
         except Exception as e:
             conn.rollback()
@@ -243,194 +227,29 @@ def register():
     return render_template('register.html')
 
 
-@app.route('/api/bio/register-options', methods=['POST'])
-def bio_register_options():
-    data = request.json
-    username = data.get('username')
-    
-    options = generate_registration_options(
-        rp_id=request.host.split(':')[0],
-        rp_name="AgriRent",
-        user_id=os.urandom(16),
-        user_name=username,
-        attestation=AttestationConveyancePreference.NONE,
-        authenticator_selection=AuthenticatorSelectionCriteria(
-            authenticator_attachment=AuthenticatorAttachment.PLATFORM,
-            resident_key=ResidentKeyRequirement.PREFERRED,
-            user_verification=UserVerificationRequirement.REQUIRED
-        ),
-    )
-    
-    session['bio_reg_challenge'] = bytes_to_base64url(options.challenge)
-    return options_to_json(options)
-
-
-@app.route('/api/bio/verify-registration', methods=['POST'])
-def bio_verify_registration():
-    data = request.json
-    challenge = session.get('bio_reg_challenge')
-    
-    if not challenge:
-        return json.dumps({"error": "No challenge found in session"}), 400
-    
-    try:
-        # Use full request.host for origin to include port if present
-        origin = f"{request.scheme}://{request.host}"
-        rp_id = request.host.split(':')[0]
-        
-        verification = verify_registration_response(
-            credential=data,
-            expected_challenge=base64url_to_bytes(challenge),
-            expected_rp_id=rp_id,
-            expected_origin=origin,
-            require_user_verification=True
-        )
-        
-        return json.dumps({
-            "success": True,
-            "credential_id": bytes_to_base64url(verification.credential_id),
-            "public_key": bytes_to_base64url(verification.credential_public_key)
-        })
-    except Exception as e:
-        print(f"BIO REG VERIFY ERROR: {e}")
-        return json.dumps({"error": str(e)}), 400
-
-
-@app.route('/api/bio/enroll', methods=['POST'])
-def bio_enroll():
+@app.route('/api/verify-pin', methods=['POST'])
+def verify_pin():
     if 'user_id' not in session:
         return json.dumps({"error": "Login required"}), 401
-        
-    data = request.json
-    challenge = session.get('bio_reg_challenge')
     
-    if not challenge:
-        return json.dumps({"error": "No challenge found in session"}), 400
-        
-    try:
-        origin = f"{request.scheme}://{request.host}"
-        rp_id = request.host.split(':')[0]
-        
-        verification = verify_registration_response(
-            credential=data,
-            expected_challenge=base64url_to_bytes(challenge),
-            expected_rp_id=rp_id,
-            expected_origin=origin,
-            require_user_verification=True
-        )
-        
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute(
-            'UPDATE users SET biometric_enabled = TRUE, biometric_credential_id = %s, biometric_public_key = %s WHERE id = %s',
-            (bytes_to_base64url(verification.credential_id), bytes_to_base64url(verification.credential_public_key), session['user_id'])
-        )
-        conn.commit()
-        cur.close()
-        conn.close()
-        
-        return json.dumps({"success": True})
-    except Exception as e:
-        print(f"BIO ENROLL ERROR: {e}")
-        return json.dumps({"error": str(e)}), 400
-
-
-@app.route('/api/bio/authenticate-options', methods=['POST'])
-def bio_authenticate_options():
-    username = request.json.get('username')
-    if not username and 'username' in session:
-        username = session['username']
+    data = request.json
+    pin = data.get('pin')
+    
+    if not pin or len(pin) != 6:
+        return json.dumps({"error": "PIN must be 6 digits"}), 400
         
     conn = get_db()
     cur = get_cursor(conn)
-    cur.execute('SELECT biometric_credential_id FROM users WHERE username = %s', (username,))
+    cur.execute('SELECT secure_pin FROM users WHERE id = %s', (session['user_id'],))
     user = cur.fetchone()
     cur.close()
     conn.close()
     
-    if not user or not user['biometric_credential_id']:
-        return json.dumps({"error": "Biometric not enabled for this account"}), 404
-    
-    options = generate_authentication_options(
-        rp_id=request.host.split(':')[0],
-        allow_credentials=[{
-            "id": base64url_to_bytes(user['biometric_credential_id']),
-            "type": "public-key"
-        }],
-        user_verification=UserVerificationRequirement.REQUIRED
-    )
-    
-    session['bio_auth_challenge'] = bytes_to_base64url(options.challenge)
-    return options_to_json(options)
-
-
-@app.route('/api/bio/verify-authentication', methods=['POST'])
-def bio_verify_authentication():
-    data = request.json
-    challenge = session.get('bio_auth_challenge')
-    username = request.json.get('username')
-    if not username and 'username' in session:
-        username = session['username']
-        
-    if not challenge:
-        return json.dumps({"error": "No challenge found in session"}), 400
-        
-    conn = get_db()
-    cur = get_cursor(conn)
-    cur.execute('SELECT * FROM users WHERE username = %s', (username,))
-    user = cur.fetchone()
-    
-    if not user:
-        cur.close()
-        conn.close()
-        return json.dumps({"error": "User not found"}), 404
-        
-    try:
-        origin = f"{request.scheme}://{request.host}"
-        rp_id = request.host.split(':')[0]
-        
-        verification = verify_authentication_response(
-            credential=data,
-            expected_challenge=base64url_to_bytes(challenge),
-            expected_rp_id=rp_id,
-            expected_origin=origin,
-            credential_public_key=base64url_to_bytes(user['biometric_public_key']),
-            credential_current_sign_count=user['biometric_sign_count'],
-            require_user_verification=True
-        )
-        
-        # Update sign count
-        cur.execute('UPDATE users SET biometric_sign_count = %s WHERE id = %s', (verification.new_sign_count, user['id']))
-        conn.commit()
-        cur.close()
-        conn.close()
-        
+    if user and check_password_hash(user['secure_pin'], pin):
+        session['payment_authorized'] = True
         return json.dumps({"success": True})
-    except Exception as e:
-        cur.close()
-        conn.close()
-        print(f"BIO AUTH VERIFY ERROR: {e}")
-        return json.dumps({"error": str(e)}), 400
-
-@app.route('/bio_login', methods=['POST'])
-def bio_login():
-    data = request.json
-    username = data.get('username')
-    if not username:
-        return json.dumps({"error": "Username required"}), 400
-    conn = get_db()
-    cur = get_cursor(conn)
-    cur.execute('SELECT * FROM users WHERE username = %s', (username,))
-    user = cur.fetchone()
-    cur.close()
-    conn.close()
-    if user:
-        session['user_id'] = user['id']
-        session['username'] = user['username']
-        session['full_name'] = user['full_name'] or user['username']
-        session['is_admin'] = user['is_admin']
-        return json.dumps({"success": True})
-    return json.dumps({"error": "User not found"}), 404
+    else:
+        return json.dumps({"error": "Incorrect security PIN"}), 403404
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -482,9 +301,9 @@ def dashboard():
     cur = get_cursor(conn)
 
     # User info
-    cur.execute('SELECT biometric_enabled FROM users WHERE id = %s', (session['user_id'],))
+    cur.execute('SELECT secure_pin FROM users WHERE id = %s', (session['user_id'],))
     user_row = cur.fetchone()
-    biometric_enabled = user_row['biometric_enabled'] if user_row else False
+    pin_enabled = True if user_row and user_row['secure_pin'] else False
 
     # Recent bookings
     cur.execute('''SELECT b.id, e.id as equipment_id, e.name, b.date, b.status, e.price, e.image, b.end_date, b.damage_fee_paid, e.damage_charge
@@ -546,7 +365,7 @@ def dashboard():
                            trending_cat=trending_cat,
                            recommended_eq=recommended_eq,
                            reminders=reminders,
-                           biometric_enabled=biometric_enabled,
+                           pin_enabled=pin_enabled,
                            full_name=session.get('full_name', 'User'))
 
 
@@ -725,11 +544,11 @@ def payment():
     conn = get_db()
     cur = get_cursor(conn)
 
-    # Check Biometric
-    cur.execute('SELECT biometric_enabled FROM users WHERE id = %s', (session['user_id'],))
+    # Check PIN status
+    cur.execute('SELECT secure_pin FROM users WHERE id = %s', (session['user_id'],))
     user_row = cur.fetchone()
-    if not user_row or not user_row['biometric_enabled']:
-        flash('Please enable Fingerprint Authentication in your dashboard before making payments.', 'info')
+    if not user_row or not user_row['secure_pin']:
+        flash('Please set a security PIN in your profile before making payments.', 'info')
         cur.close()
         conn.close()
         return redirect(url_for('dashboard'))

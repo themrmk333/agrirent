@@ -18,6 +18,7 @@
 
         <form id="bookingForm" action="{{ url_for('payment') }}" method="POST">
             <input type="hidden" name="equipment_id" value="{{ equipment.id }}">
+            <input type="hidden" id="itemPrice" value="{{ equipment.price }}">
             
             <div class="form-group">
                 <label for="phone_number">Contact Number (10 Digits)</label>
@@ -39,68 +40,87 @@
                 Note: Cancellation incurs a 20% deduction from the total amount.
             </p>
             <p style="font-size: 0.85rem; color: #4facfe; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-                🔐 Biometric verification will be required before payment.
+                🔐 6-digit Security PIN required to authorize payment.
             </p>
-            <button type="submit" class="btn btn-pop btn-block">Verify Fingerprint & Pay ➡️</button>
+            <button type="submit" class="btn btn-pop btn-block">Confirm Booking & Pay ➡️</button>
         </form>
 
-        <!-- Biometric Modal -->
-        <div id="bioModal" class="bio-modal" style="display: none;">
-            <div class="bio-modal-content">
-                <div class="pulse"></div>
-                <div class="scanner-container">
-                    <div class="scanner-line"></div>
-                    <i class="fas fa-fingerprint fingerprint-icon"></i>
+        <!-- PIN Verification Modal -->
+        <div id="pinModal" class="pin-modal" style="display: none;">
+            <div class="pin-modal-content glass-panel">
+                <div class="pin-header">
+                    <div class="lock-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3>Secure Payment</h3>
+                    <p>Enter 6-digit PIN to authorize</p>
+                    <div class="payment-summary">
+                        <span id="pinAmountText">₹ 0</span>
+                    </div>
                 </div>
-                <h3 id="bioTitle">Payment Security</h3>
-                <p id="bioDesc">Please verify your fingerprint to authorize this payment.</p>
-                <div id="bioStatus" class="bio-status">AWAITING SCAN...</div>
-                <button type="button" id="cancelBio" class="cyber-btn">Cancel</button>
+                
+                <div class="pin-input-container">
+                    <input type="password" maxlength="1" class="pin-box" id="pin1" inputmode="numeric" autocomplete="off">
+                    <input type="password" maxlength="1" class="pin-box" id="pin2" inputmode="numeric" autocomplete="off">
+                    <input type="password" maxlength="1" class="pin-box" id="pin3" inputmode="numeric" autocomplete="off">
+                    <input type="password" maxlength="1" class="pin-box" id="pin4" inputmode="numeric" autocomplete="off">
+                    <input type="password" maxlength="1" class="pin-box" id="pin5" inputmode="numeric" autocomplete="off">
+                    <input type="password" maxlength="1" class="pin-box" id="pin6" inputmode="numeric" autocomplete="off">
+                </div>
+                
+                <div id="pinStatus" class="pin-status">READY</div>
+                
+                <div class="pin-actions">
+                    <button type="button" id="cancelPin" class="btn btn-outline">Cancel</button>
+                    <button type="button" id="verifyPinBtn" class="btn btn-accent" disabled>Verify & Pay</button>
+                </div>
             </div>
         </div>
-        <script>
-            document.addEventListener("DOMContentLoaded", function() {
-                const today = new Date().toISOString().split('T')[0];
-                const startDate = document.getElementById('start_date');
-                const endDate = document.getElementById('end_date');
-                const durationWarning = document.getElementById('duration_warning');
-                
-                startDate.setAttribute('min', today);
-                endDate.setAttribute('min', today);
-                
-                startDate.addEventListener('change', function() {
-                    let sDate = new Date(this.value);
-                    endDate.setAttribute('min', this.value);
-                    
-                    let maxDate = new Date(sDate);
-                    maxDate.setDate(sDate.getDate() + 2); // Up to 3 days total
-                    
-                    endDate.setAttribute('max', maxDate.toISOString().split('T')[0]);
-                    
-                    if(endDate.value && endDate.value < this.value) {
-                        endDate.value = this.value;
-                    }
-                    if(endDate.value && new Date(endDate.value) > maxDate) {
-                        endDate.value = maxDate.toISOString().split('T')[0];
-                        durationWarning.style.display = 'block';
-                    } else {
-                        durationWarning.style.display = 'none';
-                    }
-                });
-                
-                endDate.addEventListener('change', function() {
-                    let sDate = new Date(startDate.value);
-                    let maxDate = new Date(sDate);
-                    maxDate.setDate(sDate.getDate() + 2);
-                    if(new Date(this.value) > maxDate) {
-                        this.value = maxDate.toISOString().split('T')[0];
-                        durationWarning.style.display = 'block';
-                    } else {
-                        durationWarning.style.display = 'none';
-                    }
-                });
-            });
-        </script>
     </div>
 </div>
+
+<script src="{{ url_for('static', filename='js/pin-auth.js') }}"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const today = new Date().toISOString().split('T')[0];
+        const startDate = document.getElementById('start_date');
+        const endDate = document.getElementById('end_date');
+        const durationWarning = document.getElementById('duration_warning');
+        
+        startDate.setAttribute('min', today);
+        endDate.setAttribute('min', today);
+        
+        startDate.addEventListener('change', function() {
+            let sDate = new Date(this.value);
+            endDate.setAttribute('min', this.value);
+            
+            let maxDate = new Date(sDate);
+            maxDate.setDate(sDate.getDate() + 2); // Up to 3 days total
+            
+            endDate.setAttribute('max', maxDate.toISOString().split('T')[0]);
+            
+            if(endDate.value && endDate.value < this.value) {
+                endDate.value = this.value;
+            }
+            if(endDate.value && new Date(endDate.value) > maxDate) {
+                endDate.value = maxDate.toISOString().split('T')[0];
+                durationWarning.style.display = 'block';
+            } else {
+                durationWarning.style.display = 'none';
+            }
+        });
+        
+        endDate.addEventListener('change', function() {
+            let sDate = new Date(startDate.value);
+            let maxDate = new Date(sDate);
+            maxDate.setDate(sDate.getDate() + 2);
+            if(new Date(this.value) > maxDate) {
+                this.value = maxDate.toISOString().split('T')[0];
+                durationWarning.style.display = 'block';
+            } else {
+                durationWarning.style.display = 'none';
+            }
+        });
+    });
+</script>
 {% endblock %}
