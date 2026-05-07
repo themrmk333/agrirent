@@ -249,7 +249,7 @@ def bio_register_options():
     username = data.get('username')
     
     options = generate_registration_options(
-        rp_id=request.host.split(':')[0].replace("www.", ""),
+        rp_id=request.host.split(':')[0],
         rp_name="AgriRent",
         user_id=os.urandom(16),
         user_name=username,
@@ -274,15 +274,18 @@ def bio_verify_registration():
         return json.dumps({"error": "No challenge found in session"}), 400
     
     try:
+        # Use full request.host for origin to include port if present
+        origin = f"{request.scheme}://{request.host}"
+        rp_id = request.host.split(':')[0]
+        
         verification = verify_registration_response(
             credential=data,
             expected_challenge=base64url_to_bytes(challenge),
-            expected_rp_id=request.host.split(':')[0].replace("www.", ""),
-            expected_origin=f"{request.scheme}://{request.host.split(':')[0]}",
+            expected_rp_id=rp_id,
+            expected_origin=origin,
             require_user_verification=True
         )
         
-        # Return the credential ID and public key to be saved by the main registration form
         return json.dumps({
             "success": True,
             "credential_id": bytes_to_base64url(verification.credential_id),
@@ -305,11 +308,14 @@ def bio_enroll():
         return json.dumps({"error": "No challenge found in session"}), 400
         
     try:
+        origin = f"{request.scheme}://{request.host}"
+        rp_id = request.host.split(':')[0]
+        
         verification = verify_registration_response(
             credential=data,
             expected_challenge=base64url_to_bytes(challenge),
-            expected_rp_id=request.host.split(':')[0].replace("www.", ""),
-            expected_origin=f"{request.scheme}://{request.host.split(':')[0]}",
+            expected_rp_id=rp_id,
+            expected_origin=origin,
             require_user_verification=True
         )
         
@@ -346,7 +352,7 @@ def bio_authenticate_options():
         return json.dumps({"error": "Biometric not enabled for this account"}), 404
     
     options = generate_authentication_options(
-        rp_id=request.host.split(':')[0].replace("www.", ""),
+        rp_id=request.host.split(':')[0],
         allow_credentials=[{
             "id": base64url_to_bytes(user['biometric_credential_id']),
             "type": "public-key"
@@ -380,11 +386,14 @@ def bio_verify_authentication():
         return json.dumps({"error": "User not found"}), 404
         
     try:
+        origin = f"{request.scheme}://{request.host}"
+        rp_id = request.host.split(':')[0]
+        
         verification = verify_authentication_response(
             credential=data,
             expected_challenge=base64url_to_bytes(challenge),
-            expected_rp_id=request.host.split(':')[0].replace("www.", ""),
-            expected_origin=f"{request.scheme}://{request.host.split(':')[0]}",
+            expected_rp_id=rp_id,
+            expected_origin=origin,
             credential_public_key=base64url_to_bytes(user['biometric_public_key']),
             credential_current_sign_count=user['biometric_sign_count'],
             require_user_verification=True
